@@ -9,7 +9,7 @@
  * 
  *  PROGRAMMERS & ARCHITECTS
  *  ---------------------
- *  >>>>> Gabriel Villares Silveira         - <dre>
+ *  >>>>> Gabriel Villares Silveira         - 114089936
  *  >>>>> Hugo Kenupp Cunha Guimarães       - 109062709
  * 
  *  -------------------------------------
@@ -66,15 +66,16 @@
  *  <8> TAPE            CHAR            Tape Code                       Interrupt code for the tape drive access call.
  *  <9> PRINTER         CHAR            Printer Code                    Interrupt code for the printer call.
  */
-#define timeslice 3;
-#define max_processes 100;
-#define max_iorequests 100;
-#define T_DISC 10;
-#define T_TAPE 20;
-#define T_PRINTER 40;
-#define DISC 'd';
-#define TAPE 't';
-#define PRINTER 'p';
+
+#define TIMESLICE 3
+#define MAX_PROCESSES 100
+#define MAX_IOREQUESTS 100
+#define T_DISC 10
+#define T_TAPE 20
+#define T_PRINTER 40
+#define DISC 'd'
+#define TAPE 't'
+#define PRINTER 'p'
 
 /*
  *  PROCESS CONTROL BLOCK
@@ -104,19 +105,16 @@
  *  //
  *  // UNCOMMENT THE APPRPRIATE BLOCK TO USE THIS ONE.
  *  //
- *  <?> IOLIST          IOR[10]         I/O Request list                List containing the interrupt codes and the triiger execution times
+ *  <?> IOLIST          IOR[10]         I/O Request list                List containing the interrupt codes and the triger execution times
  *                                                                          for the process's I/O requests
  */
 
-typedef struct process_pcb PCB;
-//typedef struct process_ior IOR;
-
-struct process_pcb
+typedef struct process_pcb //typedef struct process_pcb PCB;
 {
     int PID, PPID, PRIORITY, STATUS, P_TIME, E_TIME, IOITERATOR, IOTIME[10];
     char IOLIST[10];
     // IOR IOLIST[10];
-};
+}PCB;
 
 /*
  *  PROCESS I/O REQUEST BLOCK
@@ -128,13 +126,11 @@ struct process_pcb
  *  <2> IOLIST          CHAR[10]
  */
 
-/*
-struct process_ior
+/*typedef struct process_ior //typedef struct process_ior IOR;
 {
     int IOTIME[10];
     char IOLIST[10];
-};
-*/
+}IOR;*/
 
 /*
  *  GLOBAL VARABLES
@@ -156,9 +152,9 @@ struct process_ior
  */
 
 unsigned int pid_counter = 100;
-PCB *bootstrapper, *process_list[ max_processes ],
-    *high_queue[ max_processes ], *low_queue[ max_processes ]
-    *disc_queue[ max_processes ], *tape_queue[ max_processes ],*printer_queue[ max_processes ];
+PCB *bootstrapper, *process_list[MAX_PROCESSES],
+    *high_queue[MAX_PROCESSES], *low_queue[MAX_PROCESSES],
+    *disc_queue[MAX_PROCESSES], *tape_queue[MAX_PROCESSES],*printer_queue[MAX_PROCESSES];
 //  vcode being a b**** and complaining about process_list definition, saying it "expected a']'", and accusing a phony error about an
 //  undefined "ax_processes", because it's missing that m, for some reason. Ignore it, I suppose.
 
@@ -175,22 +171,14 @@ PCB *bootstrapper, *process_list[ max_processes ],
 PCB * Assemble_PCB( int pid, int ppid, int priority, int status )
 {
     // Should I use " 6*sizeof( int ) " instead? it's been a while since I've used C.
-    bootstrapper = malloc( sizeof( PCB ) );
-    bootstrapper = { pid, ppid, priority, status };
-    /*
-    AFAIK, this kind of struct initialization is valid in C, but vcode is complaninig about it, saying it "expected an expression"
-        at the first '{', revise it.
-
-    In any case, if it's in fact, wrong, junst uncomment this, I suppose:
-
+    bootstrapper = malloc(sizeof(PCB));
     bootstrapper->PID = pid;
     bootstrapper->PPID = ppid;
     bootstrapper->PRIORITY = priority;
     bootstrapper->STATUS = status;
 
-    */
     return bootstrapper;
-};
+}
 
 /*
  *  FUNCTION: Terminate     - void
@@ -201,8 +189,8 @@ PCB * Assemble_PCB( int pid, int ppid, int priority, int status )
 
 void Terminate()
 {
-    for (int i = 0; i < max_processes; i++){
-        free( &process_list[ i ] );
+    for (int i = 0; i < MAX_PROCESSES; i++){
+        free(&process_list[ i ]);
     }
 }
 
