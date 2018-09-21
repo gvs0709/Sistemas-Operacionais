@@ -43,28 +43,37 @@
  *  <1> <stdio.h>       Standard I/O library, for printf.
  *  <2> <stdlib.h>      Standard general library, for malloc and free.
  *  <3> <string.h>      Useful String functions, like strcomp, and all that fun stuff!
- *  <4> <time.h>        rand() is our friend.
+ *  <4> <pthread.h>     Standard Thread library.
+ *  <5> <sodium.h>      Secure random characters or integers library.
  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
+#include <pthread.h>
+#include <sodium.h>
+#ifdef _WIN32
+#include <Windows.h>
+#else
+#include <unistd.h>
+#endif
 
 /*
  *  DEFINES
  *  ---------------------
- *  <1> timeslice       INT             Processor Timeslice             Size of the processor's timeslice. Expressed in abstract, generic TUs
+ *  <1> TIMESLICE       INT             Processor Timeslice             Size of the processor's timeslice. Expressed in abstract, generic TUs
  *                                                                          (Time Units).
- *  <2> max_processes   INT             Maximum Process Count           Maximum number of processes available for scheduling and execution,
+ *  <2> MAX_PROCESSES   INT             Maximum Process Count           Maximum number of processes available for scheduling and execution,
  *                                                                          since our program needs an end-point.
- *  <3> max_iorequests  INT             Maximum I/O Request Count       Maximum number of I/O requests, per process.
+ *  <3> MAX_IOREQUESTS  INT             Maximum I/O Request Count       Maximum number of I/O requests, per process.
  *  <4> T_DISC          INT             Disc Time                       Access time for the hard drive disk.
  *  <5> T_TAPE          INT             Tape Time                       Access time for the tape drive.
  *  <6> T_PRINTER       INT             Printer Time                    Access time for the printer.
  *  <7> DISC            CHAR            Disc Code                       Interrupt code for the disc drive access call.
  *  <8> TAPE            CHAR            Tape Code                       Interrupt code for the tape drive access call.
  *  <9> PRINTER         CHAR            Printer Code                    Interrupt code for the printer call.
+ *  <10>NTHREADS        INT             Number of Threads               Number of threads to be created.
+ *  <11>T               INT             Sleep time                      Time in seconds that threads will sleep.
  */
 
 #define TIMESLICE 3
@@ -76,6 +85,8 @@
 #define DISC 'd'
 #define TAPE 't'
 #define PRINTER 'p'
+#define NTHREADS  2
+#define T 3
 
 /*
  *  PROCESS CONTROL BLOCK
@@ -109,8 +120,7 @@
  *                                                                          for the process's I/O requests
  */
 
-typedef struct process_pcb //typedef struct process_pcb PCB;
-{
+typedef struct process_pcb { //typedef struct process_pcb PCB;
     int PID, PPID, PRIORITY, STATUS, P_TIME, E_TIME, IOITERATOR, IOTIME[10];
     char IOLIST[10];
     // IOR IOLIST[10];
@@ -126,8 +136,7 @@ typedef struct process_pcb //typedef struct process_pcb PCB;
  *  <2> IOLIST          CHAR[10]
  */
 
-/*typedef struct process_ior //typedef struct process_ior IOR;
-{
+/*typedef struct process_ior { //typedef struct process_ior IOR;
     int IOTIME[10];
     char IOLIST[10];
 }IOR;*/
@@ -155,8 +164,6 @@ unsigned int pid_counter = 100;
 PCB *bootstrapper, *process_list[MAX_PROCESSES],
     *high_queue[MAX_PROCESSES], *low_queue[MAX_PROCESSES],
     *disc_queue[MAX_PROCESSES], *tape_queue[MAX_PROCESSES],*printer_queue[MAX_PROCESSES];
-//  vcode being a b**** and complaining about process_list definition, saying it "expected a']'", and accusing a phony error about an
-//  undefined "ax_processes", because it's missing that m, for some reason. Ignore it, I suppose.
 
 /*
  *  FUNCTION: Assemble_PCB - PCB *
@@ -168,8 +175,7 @@ PCB *bootstrapper, *process_list[MAX_PROCESSES],
 // Fuck me, C doesn't support default function values.
 // Defaults would be: pid = pid_counter +1, ppid = 0, priority = 0, status = 0.
 
-PCB * Assemble_PCB( int pid, int ppid, int priority, int status )
-{
+PCB * Assemble_PCB( int pid, int ppid, int priority, int status ) {
     // Should I use " 6*sizeof( int ) " instead? it's been a while since I've used C.
     bootstrapper = malloc(sizeof(PCB));
     bootstrapper->PID = pid;
@@ -187,11 +193,42 @@ PCB * Assemble_PCB( int pid, int ppid, int priority, int status )
  *  THE ONLY SPOT IN THE PROGRAM WHERE FREE IS CALLED.
  */
 
-void Terminate()
-{
+void Terminate() {
     for (int i = 0; i < MAX_PROCESSES; i++){
         free(&process_list[ i ]);
     }
+}
+
+/*
+ *  FUNCTION: Create_Process     - void
+ *  ---------------------
+ *  Thread function responsable to create MAX_PROCESSES processes with random time between each one.
+ *
+ */
+
+void *Create_Process(void *arg){
+    //int idThread = *(int *) arg;
+
+    for (int i = 0; i < MAX_PROCESSES; i++) {
+        if (i == 0){ // Don't wait to create the first processes
+            //code
+        }
+
+        else{
+            //sleep:
+            #ifdef _WIN32
+            Sleep(randombytes_uniform(T));
+            #else
+            sleep(randombytes_uniform(T)); // randombytes_uniform() will be a random number between 0 and T, excluding T
+            #endif
+
+            //code
+        }
+
+    }
+
+    free(arg);
+    pthread_exit(NULL);
 }
 
 /*
@@ -200,10 +237,32 @@ void Terminate()
  *  Program entry point: where the fun begins.
  */
 
-int main(int argc, char const *argv[])
-{
-    /* code */
+int main(int argc, char const *argv[]) {
+    if (sodium_init() < 0) {
+        /* panic! the library couldn't be initialized, it is not safe to use */
+        printf("Panic! The Sodium library couldn't be initialized, it is not safe to use");
+        return 1;
+    }
+
+    pthread_t tid_sistema[NTHREADS];
+    int *arg, t;
+
+    for(t=0; t<NTHREADS; t++) {
+        printf("--Aloca e preenche argumentos para thread %d\n", t);
+        arg = malloc(sizeof(int));
+
+        if (arg == NULL) {
+            printf("--ERRO: malloc()\n"); exit(-1);
+        }
+
+        *arg = t;
+
+        if (pthread_create(&tid_sistema[t], NULL, Create_Process, (void*) arg)) {
+            printf("--ERRO: pthread_create()\n"); exit(-1);
+        }
+    }
 
     Terminate();
-    return 0;
+    pthread_exit(NULL);
+    //return 0;
 }
