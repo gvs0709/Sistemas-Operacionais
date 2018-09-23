@@ -85,7 +85,7 @@
 #define DISC 'd'
 #define TAPE 't'
 #define PRINTER 'p'
-#define NTHREADS  2
+#define NTHREADS  1
 #define T 3
 
 /*
@@ -195,7 +195,7 @@ PCB * Assemble_PCB( int pid, int ppid, int priority, int status ) {
 
 void Terminate() {
     for (int i = 0; i < MAX_PROCESSES; i++){
-        free(&process_list[ i ]);
+        free(process_list[ i ]);
     }
 }
 
@@ -211,7 +211,11 @@ void *Create_Process(void *arg){
 
     for (int i = 0; i < MAX_PROCESSES; i++) {
         if (i == 0){ // Don't wait to create the first processes
-            //code
+            process_list[i]=Assemble_PCB(pid_counter, 0, 0, 0);
+            printf("--First process created--\n");
+            printf("process_list[%d]=(pid: %d, ppid: 0, priority: 0, status: 0)\n", i, pid_counter);
+            printf("\n");
+            pid_counter++;
         }
 
         else{
@@ -222,7 +226,11 @@ void *Create_Process(void *arg){
             sleep(randombytes_uniform(T)); // randombytes_uniform() will be a random number between 0 and T, excluding T
             #endif
 
-            //code
+            process_list[i]=Assemble_PCB(pid_counter, 0, 0, 0);
+            printf("> New process created!\n");
+            printf("process_list[%d]=(pid: %d, ppid: 0, priority: 0, status: 0)\n", i, pid_counter);
+            printf("\n");
+            pid_counter++;
         }
 
     }
@@ -248,17 +256,23 @@ int main(int argc, char const *argv[]) {
     int *arg, t;
 
     for(t=0; t<NTHREADS; t++) {
-        printf("--Aloca e preenche argumentos para thread %d\n", t);
+        //printf("--Aloca e preenche argumentos para thread %d\n", t);
         arg = malloc(sizeof(int));
 
         if (arg == NULL) {
-            printf("--ERRO: malloc()\n"); exit(-1);
+            printf("--ERROR: malloc()\n"); exit(-1);
         }
 
         *arg = t;
 
         if (pthread_create(&tid_sistema[t], NULL, Create_Process, (void*) arg)) {
-            printf("--ERRO: pthread_create()\n"); exit(-1);
+            printf("--ERROR: pthread_create()\n"); exit(-1);
+        }
+    }
+
+    for (t=0; t<NTHREADS; t++) {
+        if (pthread_join(tid_sistema[t], NULL)) {
+            printf("--ERROR: pthread_join() \n"); exit(-1);
         }
     }
 
