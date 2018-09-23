@@ -72,8 +72,9 @@
  *  <7> DISC            CHAR            Disc Code                       Interrupt code for the disc drive access call.
  *  <8> TAPE            CHAR            Tape Code                       Interrupt code for the tape drive access call.
  *  <9> PRINTER         CHAR            Printer Code                    Interrupt code for the printer call.
- *  <10>NTHREADS        INT             Number of Threads               Number of threads to be created.
- *  <11>T               INT             Sleep time                      Time in seconds that threads will sleep.
+ *  <10> NTHREADS       INT             Number of Threads               Number of threads to be created.
+ *  <11> T              INT             Sleep time                      Time in seconds that threads will sleep.
+ *  <12> MAX_PRIORITY   INT             Top priority                    The greatest priority a process can have plus 1 (priority goes from 0 to 5)
  */
 
 #define TIMESLICE 3
@@ -87,6 +88,7 @@
 #define PRINTER 'p'
 #define NTHREADS  1
 #define T 3
+#define MAX_PRIORITY 6
 
 /*
  *  PROCESS CONTROL BLOCK
@@ -163,7 +165,8 @@ typedef struct process_pcb { //typedef struct process_pcb PCB;
 unsigned int pid_counter = 100;
 PCB *bootstrapper, *process_list[MAX_PROCESSES],
     *high_queue[MAX_PROCESSES], *low_queue[MAX_PROCESSES],
-    *disc_queue[MAX_PROCESSES], *tape_queue[MAX_PROCESSES],*printer_queue[MAX_PROCESSES];
+    *disc_queue[MAX_PROCESSES], *tape_queue[MAX_PROCESSES],*printer_queue[MAX_PROCESSES],
+    *greatest_priority;
 
 /*
  *  FUNCTION: Assemble_PCB - PCB *
@@ -195,7 +198,7 @@ PCB * Assemble_PCB( int pid, int ppid, int priority, int status ) {
 
 void Terminate() {
     for (int i = 0; i < MAX_PROCESSES; i++){
-        free(process_list[ i ]);
+        free(process_list[i]); // I removed the '&' before process_list as it was giving a 'invalid pointer' error or something like that, not sure if its still free correctly thought
     }
 }
 
@@ -211,11 +214,17 @@ void *Create_Process(void *arg){
 
     for (int i = 0; i < MAX_PROCESSES; i++) {
         if (i == 0){ // Don't wait to create the first processes
-            process_list[i]=Assemble_PCB(pid_counter, 0, 0, 0);
+            process_list[i] = Assemble_PCB(pid_counter, 0, randombytes_uniform(MAX_PRIORITY), 0);
+
             printf("--First process created--\n");
-            printf("process_list[%d]=(pid: %d, ppid: 0, priority: 0, status: 0)\n", i, pid_counter);
+            printf("process_list[%d] = {pid: %d, ppid: %d, priority: %d, status: %d}\n", i, process_list[i]->PID, process_list[i]->PPID, process_list[i]->PRIORITY, process_list[i]->STATUS);
             printf("\n");
+
             pid_counter++;
+            greatest_priority = process_list[i];
+
+            printf("---> greatest_priority->priority = %d\n", greatest_priority->PRIORITY);
+            printf("\n");
         }
 
         else{
@@ -226,11 +235,20 @@ void *Create_Process(void *arg){
             sleep(randombytes_uniform(T)); // randombytes_uniform() will be a random number between 0 and T, excluding T
             #endif
 
-            process_list[i]=Assemble_PCB(pid_counter, 0, 0, 0);
-            printf("> New process created!\n");
-            printf("process_list[%d]=(pid: %d, ppid: 0, priority: 0, status: 0)\n", i, pid_counter);
+            process_list[i] = Assemble_PCB(pid_counter, 0, randombytes_uniform(MAX_PRIORITY), 0);
+
+            printf("-> New process created!\n");
+            printf("process_list[%d] = {pid: %d, ppid: %d, priority: %d, status: %d}\n", i, process_list[i]->PID, process_list[i]->PPID, process_list[i]->PRIORITY, process_list[i]->STATUS);
             printf("\n");
+
             pid_counter++;
+
+            if (process_list[i]->PRIORITY > greatest_priority->PRIORITY){
+                greatest_priority = process_list[i];
+
+                printf("---> greatest_priority->priority = %d\n", greatest_priority->PRIORITY);
+                printf("\n");
+            }
         }
 
     }
@@ -270,7 +288,7 @@ int main(int argc, char const *argv[]) {
         }
     }
 
-    for (t=0; t<NTHREADS; t++) {
+    for (t = 0; t < NTHREADS; t++) {
         if (pthread_join(tid_sistema[t], NULL)) {
             printf("--ERROR: pthread_join() \n"); exit(-1);
         }
