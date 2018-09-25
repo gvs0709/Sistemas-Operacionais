@@ -11,6 +11,7 @@
  *  ---------------------
  *  >>>>> Gabriel Villares Silveira         - 114089936
  *  >>>>> Hugo Kenupp Cunha Guimarães       - 109062709
+ *  >>>>> Eduardo Carneiro                  - <dre>
  * 
  *  -------------------------------------
  *  <==> WHAT THIS PROGRAM DOES <==>
@@ -35,6 +36,13 @@
  *      arrays are useful, too, if you don't want to deal with a struct inside a struct - accessing fields like that can be complicated,
  *      especially when you have to remember the disction of component access modes: '->' if accessing a component of a pointer to a struct,
  *      and '.' if you're referencing it directly.
+ */
+
+/*
+ *  TO DO LIST
+ *  ---------------------
+ *  - Windows Thread Compatibility (windows.h or libsodium for windows)
+ *  <add here>
  */
 
 /*
@@ -88,7 +96,7 @@
 #define PRINTER 'p'
 #define NTHREADS  1
 #define T 3
-#define MAX_PRIORITY 6
+#define MAX_PRIORITY 5
 
 /*
  *  PROCESS CONTROL BLOCK
