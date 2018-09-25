@@ -41,7 +41,8 @@
 /*
  *  TO DO LIST
  *  ---------------------
- *  - Windows Thread Compatibility (windows.h or libsodium for windows)
+ *  - Windows Thread Compatibility (windows.h or pthread for windows)
+ *  - install libsodium on Windows
  *  <add here>
  */
 
@@ -82,21 +83,23 @@
  *  <9> PRINTER         CHAR            Printer Code                    Interrupt code for the printer call.
  *  <10> NTHREADS       INT             Number of Threads               Number of threads to be created.
  *  <11> T              INT             Sleep time                      Time in seconds that threads will sleep.
- *  <12> MAX_PRIORITY   INT             Top priority                    The greatest priority a process can have plus 1 (priority goes from 0 to 5)
+ *  <12> MAX_PRIORITY   INT             Top priority                    The greatest priority a process can have (priority goes from 0 to 4)
+ *  <13> IO_TYPE        INT             Maximum I/O types               Defines how many I/O types are exists in the simulator
  */
 
 #define TIMESLICE 3
-#define MAX_PROCESSES 100
-#define MAX_IOREQUESTS 100
+#define MAX_PROCESSES 10 // Temporarily reduced to test things out
+#define MAX_IOREQUESTS 10
 #define T_DISC 10
 #define T_TAPE 20
-#define T_PRINTER 40
+#define T_PRINTER 30
 #define DISC 'd'
 #define TAPE 't'
 #define PRINTER 'p'
 #define NTHREADS  1
 #define T 3
 #define MAX_PRIORITY 5
+#define IO_TYPE 3
 
 /*
  *  PROCESS CONTROL BLOCK
@@ -115,7 +118,7 @@
  *                      -               -                                   them properly.
  *  <5> P_TIME          INT             Processor Execution Time        Remaining processor time to process completion, used by the simulator,
  *                      -               -                                   to determine when a process has finished, so as to be properly
- *                      -               -                                   removed from the queues and termiated. Expressed in abstract,
+ *                      -               -                                   removed from the queues and terminated. Expressed in abstract,
  *                      -               -                                   generic TUs (Time Units.)
  *  <6> E_TIME          INT             Total Execution Time            Total execution time of a process, from arrival to termination. 
  *                      -               -                                   Expressed in abstract, generic TUs (Time Units).
@@ -131,9 +134,9 @@
  */
 
 typedef struct process_pcb { //typedef struct process_pcb PCB;
-    int PID, PPID, PRIORITY, STATUS, P_TIME, E_TIME, IOITERATOR, IOTIME[10];
-    char IOLIST[10];
-    // IOR IOLIST[10];
+    int PID, PPID, PRIORITY, STATUS, P_TIME, E_TIME, IOITERATOR, IOTIME[MAX_IOREQUESTS];
+    char IOLIST[MAX_IOREQUESTS];
+    // IOR IOLIST[MAX_IOREQUESTS];
 }PCB;
 
 /*
@@ -168,13 +171,14 @@ typedef struct process_pcb { //typedef struct process_pcb PCB;
  *  <6> disc_queue      PCB *[]         Disc I/O Request Queue          Queue for the processes that requested disc access.
  *  <7> tape_queue      PCB *[]         Tape I/O Request Queue          Queue for the processes that requested tape access.
  *  <8> printer_queue   PCB *[]         Printer I/O Request Queue       Queue for the processes that requested printer access.
+ *  <9> select_IO       UNSIGNED INT    Stores the time of the IO types Array with 3 positions, one for each I/O type time.
  */
 
-unsigned int pid_counter = 100;
+unsigned int pid_counter = 100, select_IO[IO_TYPE];
 PCB *bootstrapper, *process_list[MAX_PROCESSES],
     *high_queue[MAX_PROCESSES], *low_queue[MAX_PROCESSES],
-    *disc_queue[MAX_PROCESSES], *tape_queue[MAX_PROCESSES],*printer_queue[MAX_PROCESSES],
-    *greatest_priority;
+    *disc_queue[MAX_PROCESSES], *tape_queue[MAX_PROCESSES],*printer_queue[MAX_PROCESSES];
+    /**greatest_priority;*/
 
 /*
  *  FUNCTION: Assemble_PCB - PCB *
@@ -184,15 +188,40 @@ PCB *bootstrapper, *process_list[MAX_PROCESSES],
  */
 
 // Fuck me, C doesn't support default function values.
-// Defaults would be: pid = pid_counter +1, ppid = 0, priority = 0, status = 0.
+// Defaults would be: pid = pid_counter +1, ppid = 0, priority = 0, status = 0, iterator = (0 or MAX_IOREQUESTS?).
 
-PCB * Assemble_PCB( int pid, int ppid, int priority, int status ) {
-    // Should I use " 6*sizeof( int ) " instead? it's been a while since I've used C.
+PCB * Assemble_PCB(int pid, int ppid, int priority, int status, int iterator) {
+    int aux = randombytes_uniform(MAX_IOREQUESTS)+1; // Executes the 'for' bellow a random number of times (ranges from 1 to MAX_IOREQUESTS times)
+
     bootstrapper = malloc(sizeof(PCB));
     bootstrapper->PID = pid;
     bootstrapper->PPID = ppid;
     bootstrapper->PRIORITY = priority;
     bootstrapper->STATUS = status;
+    bootstrapper->IOITERATOR = iterator;
+
+    for (int i = 0; i < aux; ++i) {
+        bootstrapper->IOTIME[i] = select_IO[randombytes_uniform(IO_TYPE)];
+        printf("| pid: %d, IOTIME[%d]: %d, ", pid, i, bootstrapper->IOTIME[i]);
+
+        switch (bootstrapper->IOTIME[i]){
+            case T_DISC:
+                bootstrapper->IOLIST[i] = DISC;
+                break;
+
+            case T_TAPE:
+                bootstrapper->IOLIST[i] = TAPE;
+                break;
+
+            case T_PRINTER:
+                bootstrapper->IOLIST[i] = PRINTER;
+        }
+
+        printf("IOLIST[%d]: %c |\n", i, bootstrapper->IOLIST[i]);
+    }
+
+    printf("\n");
+    // How to initialize P_TIME and E_TIME? Maybe E_TIME should not be a PCB field...
 
     return bootstrapper;
 }
@@ -222,17 +251,19 @@ void *Create_Process(void *arg){
 
     for (int i = 0; i < MAX_PROCESSES; i++) {
         if (i == 0){ // Don't wait to create the first processes
-            process_list[i] = Assemble_PCB(pid_counter, 0, randombytes_uniform(MAX_PRIORITY), 0);
+            printf("*------------------------------First process created------------------------------*\n");
 
-            printf("--First process created--\n");
-            printf("process_list[%d] = {pid: %d, ppid: %d, priority: %d, status: %d}\n", i, process_list[i]->PID, process_list[i]->PPID, process_list[i]->PRIORITY, process_list[i]->STATUS);
+            process_list[i] = Assemble_PCB(pid_counter, getppid(), 0, 0, 0);
+
+            printf(" process_list[%d] = {pid: %d, ppid: %d, priority: %d, status: %d, IOiterator: %d}\n", i, process_list[i]->PID, process_list[i]->PPID, process_list[i]->PRIORITY, process_list[i]->STATUS, process_list[i]->IOITERATOR);
+            printf("*--------------------------------------------------------------------------------*");
             printf("\n");
 
             pid_counter++;
-            greatest_priority = process_list[i];
+            /*greatest_priority = process_list[i];
 
             printf("---> greatest_priority->priority = %d\n", greatest_priority->PRIORITY);
-            printf("\n");
+            printf("\n");*/
         }
 
         else{
@@ -243,20 +274,21 @@ void *Create_Process(void *arg){
             sleep(randombytes_uniform(T)); // randombytes_uniform() will be a random number between 0 and T, excluding T
             #endif
 
-            process_list[i] = Assemble_PCB(pid_counter, 0, randombytes_uniform(MAX_PRIORITY), 0);
+            process_list[i] = Assemble_PCB(pid_counter, getppid(), 0, 0, 0);
 
-            printf("-> New process created!\n");
-            printf("process_list[%d] = {pid: %d, ppid: %d, priority: %d, status: %d}\n", i, process_list[i]->PID, process_list[i]->PPID, process_list[i]->PRIORITY, process_list[i]->STATUS);
+            //printf("-> New process created!\n");
+            printf(" process_list[%d] = {pid: %d, ppid: %d, priority: %d, status: %d, IOiterator: %d}\n", i, process_list[i]->PID, process_list[i]->PPID, process_list[i]->PRIORITY, process_list[i]->STATUS, process_list[i]->IOITERATOR);
+            printf("*--------------------------------------------------------------------------------*");
             printf("\n");
 
             pid_counter++;
 
-            if (process_list[i]->PRIORITY > greatest_priority->PRIORITY){
+            /*if (process_list[i]->PRIORITY > greatest_priority->PRIORITY){
                 greatest_priority = process_list[i];
 
                 printf("---> greatest_priority->priority = %d\n", greatest_priority->PRIORITY);
                 printf("\n");
-            }
+            }*/
         }
 
     }
@@ -277,6 +309,10 @@ int main(int argc, char const *argv[]) {
         printf("Panic! The Sodium library couldn't be initialized, it is not safe to use");
         return 1;
     }
+
+    select_IO[0] = T_DISC;
+    select_IO[1] = T_TAPE;
+    select_IO[2] = T_PRINTER;
 
     pthread_t tid_sistema[NTHREADS];
     int *arg, t;
