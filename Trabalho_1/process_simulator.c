@@ -184,14 +184,14 @@ PCB *bootstrapper, *process_list[MAX_PROCESSES],
  *  FUNCTION: Assemble_PCB - PCB *
  *  ---------------------
  *  Properly initializes the PCB data structure - memmory allocation and all.
- *  THE ONLY SPOT IN THE PROGRAM WHERE MALLOC IS CALLED.
+ *  THE ONLY SPOT IN THE PROGRAM WHERE MALLOC IS CALLED BESIDES IN THE THREAD ARGS ALLOCATION IN MAIN.
  */
 
 // Fuck me, C doesn't support default function values.
 // Defaults would be: pid = pid_counter +1, ppid = 0, priority = 0, status = 0, iterator = (0 or MAX_IOREQUESTS?).
 
 PCB * Assemble_PCB(int pid, int ppid, int priority, int status, int iterator) {
-    int aux = randombytes_uniform(MAX_IOREQUESTS)+1; // Executes the 'for' bellow a random number of times (ranges from 1 to MAX_IOREQUESTS times)
+    int aux = randombytes_uniform(MAX_IOREQUESTS+1); // Executes the 'for' bellow a random number of times (ranges from 0 to MAX_IOREQUESTS times)
 
     bootstrapper = malloc(sizeof(PCB));
     bootstrapper->PID = pid;
