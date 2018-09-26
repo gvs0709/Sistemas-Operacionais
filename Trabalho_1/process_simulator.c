@@ -11,7 +11,7 @@
  *  ---------------------
  *  >>>>> Gabriel Villares Silveira         - 114089936
  *  >>>>> Hugo Kenupp Cunha Guimarães       - 109062709
- *  >>>>> Eduardo Carneiro                  - <dre>
+ *  >>>>> Eduardo Carneiro                  - 113149505
  * 
  *  -------------------------------------
  *  <==> WHAT THIS PROGRAM DOES <==>
@@ -305,7 +305,6 @@ void *Create_Process(void *arg){
 
 int main(int argc, char const *argv[]) {
     if (sodium_init() < 0) {
-        /* panic! the library couldn't be initialized, it is not safe to use */
         printf("Panic! The Sodium library couldn't be initialized, it is not safe to use");
         return 1;
     }
@@ -340,5 +339,4 @@ int main(int argc, char const *argv[]) {
 
     Terminate();
     pthread_exit(NULL);
-    //return 0;
 }
