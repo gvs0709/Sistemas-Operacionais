@@ -218,23 +218,17 @@ PCB * Assemble_PCB(int pid, int ppid, int priority, int status, int s_time, int 
     }*/
 
     for (int i = 0; i < aux; ++i) {
+        bootstrapper->IOTIME[i] = randombytes_uniform((const uint32_t) bootstrapper->S_TIME - 1) + 1; // Ranges from 1 to S_TIME-1
+
         if (i == 0){
-            bootstrapper->IOTIME[i] = randombytes_uniform((const uint32_t) bootstrapper->S_TIME); // Ranges from zero to S_TIME-1
-
-            if (bootstrapper->IOTIME[i] == 0){
-                bootstrapper->IOTIME[i] = 1;
-            }
-
             printf("| pid: %d, IOTIME[%d]: %d, ", pid, i, bootstrapper->IOTIME[i]);
         }
 
         else{
-            bootstrapper->IOTIME[i] = randombytes_uniform((const uint32_t) bootstrapper->S_TIME);
-
             for (int j = 0; j < i; ++j) {
-                if (bootstrapper->IOTIME[i] == 0 || bootstrapper->IOTIME[i] == bootstrapper->IOTIME[j]){
-                    bootstrapper->IOTIME[i] = randombytes_uniform((const uint32_t) bootstrapper->S_TIME);
-                    j = 0;
+                if (bootstrapper->IOTIME[i] == bootstrapper->IOTIME[j]){
+                    bootstrapper->IOTIME[i] = randombytes_uniform((const uint32_t) bootstrapper->S_TIME - 1) + 1;
+                    j = -1; // Checks IOTIME from the start again
                 }
             }
 
@@ -276,7 +270,7 @@ PCB * Assemble_PCB(int pid, int ppid, int priority, int status, int s_time, int 
     }
 
     printf("\n");
-    // How to initialize P_TIME and E_TIME? Maybe E_TIME should not be a PCB field...
+    // How to initialize P_TIME and E_TIME?
 
     return bootstrapper;
 }
@@ -298,13 +292,12 @@ void Terminate() {
  *  FUNCTION: Create_Process     - void
  *  ---------------------
  *  Thread function responsable to create MAX_PROCESSES processes with random time between each one.
- *
  */
 
 void *Create_Process(void *arg){
     //int idThread = *(int *) arg;
     clock_t thread_time;
-    uintmax_t aux;
+    double aux;
 
     for (int i = 0; i < MAX_PROCESSES; i++) {
         if (i == 0){ // Don't wait to create the first processes
@@ -317,9 +310,9 @@ void *Create_Process(void *arg){
 
             high_queue[i] = process_list[i];
             thread_time = clock();
-            aux = (uintmax_t)(thread_time - start_t);
+            aux = (thread_time - start_t) * 1000. / CLOCKS_PER_SEC;
 
-            printf(" Process %d arrived in high_queue[%d] at %ju + %ju\n", high_queue[i]->PID, i, (uintmax_t)start_t, aux);
+            printf(" Process %d arrived in high_queue[%d] at %6.3f + %6.3f\n", high_queue[i]->PID, i, (start_t * 1000. / CLOCKS_PER_SEC), aux);
             printf("*--------------------------------------------------------------------------------*");
             printf("\n");
 
@@ -343,15 +336,14 @@ void *Create_Process(void *arg){
 
             high_queue[i] = process_list[i];
             thread_time = clock();
-            aux = (uintmax_t)(thread_time - start_t) / CLOCKS_PER_SEC;
+            aux = (thread_time - start_t) * 1000. / CLOCKS_PER_SEC;
 
-            printf(" Process %d arrived in high_queue[%d] at %ju + %ju\n", high_queue[i]->PID, i, (uintmax_t)(start_t / CLOCKS_PER_SEC), aux);
+            printf(" Process %d arrived in high_queue[%d] at %6.3f + %6.3f\n", high_queue[i]->PID, i, (start_t * 1000. / CLOCKS_PER_SEC), aux);
             printf("*--------------------------------------------------------------------------------*");
             printf("\n");
 
             pid_counter++;
         }
-
     }
 
     free(arg);
@@ -367,7 +359,7 @@ void *Create_Process(void *arg){
 int main(int argc, char const *argv[]) {
     start_t = clock();
 
-    printf("==> Simulator start time: %ju\n", (uintmax_t)(start_t));
+    printf("==> Simulator start time: %6.3f\n", (start_t * 1000. / CLOCKS_PER_SEC));
     printf("\n");
 
     if (sodium_init() < 0) {
