@@ -71,7 +71,7 @@
 /*
  *  DEFINES
  *  ---------------------
- *  <1> TIMESLICE       INT             Processor Timeslice             Size of the processor's timeslice. Expressed in abstract, generic TUs
+ *  <1> TIMESLICE       INT             Processor Timeslice             Size of the processor's timeslice (Quantum). Expressed in abstract, generic TUs
  *                                                                          (Time Units).
  *  <2> MAX_PROCESSES   INT             Maximum Process Count           Maximum number of processes available for scheduling and execution,
  *                                                                          since our program needs an end-point.
@@ -101,7 +101,7 @@
 #define PRINTER 'p'
 #define NTHREADS  1
 #define T 3
-#define MAX_PRIORITY 5
+#define MAX_PRIORITY 3
 #define IO_TYPE 3
 #define MIN_SERVICE_TIME 5
 #define MAX_SERVICE_TIME 26
@@ -131,7 +131,6 @@
  *  <8> IOTIME          INT[10]         I/O Request time list           List containing the trigger execution times of the process's I/O
  *                      -               -                                   requests.
  *  <9> IOLIST          CHAR[10]        I/O Request list                List containing the interrupt codes for the process's I/O requests.
- *  <10>S_TIME          INT             Process execution time          Estimated execution time of a process
  *  //
  *  // UNCOMMENT THE APPRPRIATE BLOCK TO USE THIS ONE.
  *  //
@@ -139,8 +138,8 @@
  *                                                                          for the process's I/O requests
  */
 
-typedef struct process_pcb { //typedef struct process_pcb PCB;
-    int PID, PPID, PRIORITY, STATUS, P_TIME, E_TIME, S_TIME, IOITERATOR, IOTIME[MAX_IOREQUESTS];
+typedef struct process_pcb {
+    int PID, PPID, PRIORITY, STATUS, P_TIME, E_TIME, IOITERATOR, IOTIME[MAX_IOREQUESTS];
     char IOLIST[MAX_IOREQUESTS];
     // IOR IOLIST[MAX_IOREQUESTS];
 }PCB;
@@ -155,7 +154,7 @@ typedef struct process_pcb { //typedef struct process_pcb PCB;
  *  <2> IOLIST          CHAR[10]
  */
 
-/*typedef struct process_ior { //typedef struct process_ior IOR;
+/*typedef struct process_ior {
     int IOTIME[10];
     char IOLIST[10];
 }IOR;*/
@@ -186,6 +185,8 @@ PCB *bootstrapper, *process_list[MAX_PROCESSES],
     *disc_queue[MAX_PROCESSES], *tape_queue[MAX_PROCESSES],*printer_queue[MAX_PROCESSES];
     /**greatest_priority;*/
 clock_t start_t, end_t, total_t;
+struct timespec tim, tim2;
+
 
 /*
  *  FUNCTION: Assemble_PCB - PCB *
@@ -197,20 +198,20 @@ clock_t start_t, end_t, total_t;
 // Fuck me, C doesn't support default function values.
 // Defaults would be: pid = pid_counter +1, ppid = 0, priority = 0, status = 0, iterator = (0 or MAX_IOREQUESTS?).
 
-PCB * Assemble_PCB(int pid, int ppid, int priority, int status, int s_time, int iterator) {
+PCB *Assemble_PCB(int pid, int ppid, int priority, int status, int p_time, int iterator){
     bootstrapper = malloc(sizeof(PCB));
     bootstrapper->PID = pid;
     bootstrapper->PPID = ppid;
     bootstrapper->PRIORITY = priority;
     bootstrapper->STATUS = status;
-    bootstrapper->S_TIME = s_time;
+    bootstrapper->P_TIME = p_time;
     bootstrapper->IOITERATOR = iterator;
 
-    int aux = randombytes_uniform(MAX_IOREQUESTS+1);
+    int aux = randombytes_uniform(MAX_IOREQUESTS+1); // Decides how many I/O requests will be made randomly, varies from 0 to MAX_IOREQUESTS - 1
 
     // To uncomment this section MAX_IOREQUESTS must be MAX_SERVICE_TIME - 1
-    /*if (bootstrapper->S_TIME < MAX_IOREQUESTS){
-        aux = randombytes_uniform(s_time + 1); // Executes the 'for' bellow a random number of times (ranges from 0 to S_TIME times)
+    /*if (bootstrapper->P_TIME < MAX_IOREQUESTS){
+        aux = randombytes_uniform(p_time + 1); // Executes the 'for' bellow a random number of times (ranges from 0 to P_TIME times)
     }
 
     else{
@@ -218,7 +219,7 @@ PCB * Assemble_PCB(int pid, int ppid, int priority, int status, int s_time, int 
     }*/
 
     for (int i = 0; i < aux; ++i) {
-        bootstrapper->IOTIME[i] = randombytes_uniform((const uint32_t) bootstrapper->S_TIME - 1) + 1; // Ranges from 1 to S_TIME-1
+        bootstrapper->IOTIME[i] = randombytes_uniform((const uint32_t) bootstrapper->P_TIME - 1) + 1; // Ranges from 1 to P_TIME-1
 
         if (i == 0){
             printf("| pid: %d, IOTIME[%d]: %d, ", pid, i, bootstrapper->IOTIME[i]);
@@ -227,7 +228,7 @@ PCB * Assemble_PCB(int pid, int ppid, int priority, int status, int s_time, int 
         else{
             for (int j = 0; j < i; ++j) {
                 if (bootstrapper->IOTIME[i] == bootstrapper->IOTIME[j]){
-                    bootstrapper->IOTIME[i] = randombytes_uniform((const uint32_t) bootstrapper->S_TIME - 1) + 1;
+                    bootstrapper->IOTIME[i] = randombytes_uniform((const uint32_t) bootstrapper->P_TIME - 1) + 1;
                     j = -1; // Checks IOTIME from the start again
                 }
             }
@@ -270,10 +271,88 @@ PCB * Assemble_PCB(int pid, int ppid, int priority, int status, int s_time, int 
     }
 
     printf("\n");
+
+    if (aux == 0){
+        bootstrapper->IOITERATOR = -1;
+    }
+
+    if (aux > 1){
+        //printf("IOTIME ordenation:\n");
+
+        for (int k = 0; k < aux; ++k){
+            //printf("| pid: %d, IOTIME[%d]: %d |\n", pid, k, bootstrapper->IOTIME[k]);
+
+            if (bootstrapper->IOTIME[k] > bootstrapper->IOTIME[bootstrapper->IOITERATOR]){
+                bootstrapper->IOITERATOR = k;
+            }
+        }
+
+        printf("| IOITERATOR = %d |\n", bootstrapper->IOITERATOR);
+        printf("\n");
+    }
+
     // How to initialize P_TIME and E_TIME?
 
     return bootstrapper;
 }
+
+//---------------Round Robin waiting time/ turnaround time-------------------------------
+/*void findWaitingTime(int P[], int n,int bt[], int wt[], int quantum){ // parameters: Process list, max_processes, burst time array, wait time array, timeslice
+    int rem_bt[n];
+
+    for (int i = 0 ; i < n ; i++) {
+        rem_bt[i] = bt[i];
+    }
+
+    int t = 0;
+
+    while (1){
+        int done = 1;
+
+        for (int i = 0 ; i < n; i++){
+            if (rem_bt[i] > 0) {
+                done = 0;
+
+                if (rem_bt[i] > quantum){
+                    t += quantum;
+                    rem_bt[i] -= quantum;
+                }
+
+                else{
+                    t = t + rem_bt[i];
+                    wt[i] = t – bt[i];
+                    rem_bt[i] = 0;
+                }
+            }
+        }
+
+        if (done == 1) {
+            break;
+        }
+    }
+}
+void findTurnAroundTime(int P[], int n,int bt[], int wt[], int tat[]){ // parametres: process list, max processes, burst time array, wait time array, turnaraound time array
+    for (int i = 0; i < n ; i++){
+        tat[i] = bt[i] + wt[i];
+    }
+
+
+}
+
+void findavgTime(int P[], int n, int bt[],int quantum){ // parametres: process list, max processes, burst time array, timeslice
+    int wt[n], tat[n], total_wt = 0, total_tat = 0;
+    findWaitingTime(P, n, bt, wt, quantum);
+    findTurnAroundTime(P, n, bt, wt, tat);
+
+    for (int i=0; i<n; i++){
+        total_wt = total_wt + wt[i];
+        total_tat = total_tat + tat[i];
+    }
+
+    printf("Average waiting time = %f", (float)total_wt / (float)n);
+    printf("\nAverage turn around time =%f ", (float)total_tat / (float)n);
+}
+//-----------------//--------------------------------*/
 
 /*
  *  FUNCTION: Terminate     - void
@@ -296,16 +375,16 @@ void Terminate() {
 
 void *Create_Process(void *arg){
     //int idThread = *(int *) arg;
-    clock_t thread_time;
+    clock_t thread_time, temp_time;
     double aux;
 
     for (int i = 0; i < MAX_PROCESSES; i++) {
         if (i == 0){ // Don't wait to create the first processes
             printf("*------------------------------First process created------------------------------*\n");
 
-            process_list[i] = Assemble_PCB(pid_counter, getppid(), 0, 0, randombytes_uniform(MAX_SERVICE_TIME) + MIN_SERVICE_TIME, 0);
+            process_list[i] = Assemble_PCB(pid_counter, getppid(), MAX_PRIORITY, 0, randombytes_uniform(MAX_SERVICE_TIME) + MIN_SERVICE_TIME, 0);
 
-            printf(" process_list[%d] = {pid: %d, ppid: %d, priority: %d, status: %d, service time: %d, IOiterator: %d}\n", i, process_list[i]->PID, process_list[i]->PPID, process_list[i]->PRIORITY, process_list[i]->STATUS, process_list[i]->S_TIME, process_list[i]->IOITERATOR);
+            printf(" process_list[%d] = {pid: %d, ppid: %d, priority: %d, status: %d, service time: %d, IOiterator: %d}\n", i, process_list[i]->PID, process_list[i]->PPID, process_list[i]->PRIORITY, process_list[i]->STATUS, process_list[i]->P_TIME, process_list[i]->IOITERATOR);
             printf("\n");
 
             high_queue[i] = process_list[i];
@@ -317,6 +396,7 @@ void *Create_Process(void *arg){
             printf("\n");
 
             pid_counter++;
+            temp_time = thread_time;
         }
 
         else{
@@ -329,25 +409,56 @@ void *Create_Process(void *arg){
             sleep(time);
             #endif
 
-            process_list[i] = Assemble_PCB(pid_counter, getppid(), 0, 0, randombytes_uniform(MAX_SERVICE_TIME) + MIN_SERVICE_TIME, 0);
+            process_list[i] = Assemble_PCB(pid_counter, getppid(), MAX_PRIORITY, 0, randombytes_uniform(MAX_SERVICE_TIME) + MIN_SERVICE_TIME, 0);
 
-            printf(" process_list[%d] = {pid: %d, ppid: %d, priority: %d, status: %d, service time: %d, IOiterator: %d}\n", i, process_list[i]->PID, process_list[i]->PPID, process_list[i]->PRIORITY, process_list[i]->STATUS, process_list[i]->S_TIME, process_list[i]->IOITERATOR);
+            printf(" process_list[%d] = {pid: %d, ppid: %d, priority: %d, status: %d, service time: %d, IOiterator: %d}\n", i, process_list[i]->PID, process_list[i]->PPID, process_list[i]->PRIORITY, process_list[i]->STATUS, process_list[i]->P_TIME, process_list[i]->IOITERATOR);
             printf("\n");
 
             high_queue[i] = process_list[i];
             thread_time = clock();
-            aux = (thread_time - start_t) * 1000. / CLOCKS_PER_SEC;
+            aux = (thread_time - temp_time) * 1000. / CLOCKS_PER_SEC;
 
-            printf(" Process %d arrived in high_queue[%d] at %6.3f + %6.3f\n", high_queue[i]->PID, i, (start_t * 1000. / CLOCKS_PER_SEC), aux);
+            printf(" Process %d arrived in high_queue[%d] at %6.3f + %6.3f\n", high_queue[i]->PID, i, (temp_time * 1000. / CLOCKS_PER_SEC), aux);
             printf("*--------------------------------------------------------------------------------*");
             printf("\n");
 
             pid_counter++;
+            temp_time = thread_time;
         }
     }
 
     free(arg);
     pthread_exit(NULL);
+}
+
+void CPU(PCB *p){
+    tim.tv_sec = 0;
+    tim.tv_nsec = 100000000;
+
+    for (int i = 0; i < TIMESLICE; ++i) {
+        nanosleep(&tim , &tim2);
+        p->P_TIME--;
+
+        if (p->IOTIME[p->IOITERATOR] == p->P_TIME){
+            //code
+        }
+    }
+}
+
+void Disk_Handler(){
+
+}
+
+void Tape_Handler(){
+
+}
+
+void Printer_Handler(){
+
+}
+
+void Scheduler(){
+
 }
 
 /*
@@ -357,6 +468,7 @@ void *Create_Process(void *arg){
  */
 
 int main(int argc, char const *argv[]) {
+    //int P[20],burst_time[20],quantum,n; // Round Robin waiting time/ turnaround time variables/ parameters
     start_t = clock();
 
     printf("==> Simulator start time: %6.3f\n", (start_t * 1000. / CLOCKS_PER_SEC));
@@ -389,6 +501,10 @@ int main(int argc, char const *argv[]) {
         }
     }
 
+    /*printf("==> Chamei CPU!!!\n");
+    CPU(high_queue[0]);
+    printf("==> Cabou CPU\n");*/
+
     for (t = 0; t < NTHREADS; t++) {
         if (pthread_join(tid_sistema[t], NULL)) {
             printf("--ERROR: pthread_join() \n"); exit(-1);
@@ -396,5 +512,11 @@ int main(int argc, char const *argv[]) {
     }
 
     Terminate();
+    end_t = clock();
+
+    printf("\n");
+    printf("==> Simulator end time: %6.3f\n", (end_t * 1000. / CLOCKS_PER_SEC));
+    printf("\n");
+
     pthread_exit(NULL);
 }
