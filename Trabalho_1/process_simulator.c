@@ -66,6 +66,8 @@
 #include <Windows.h>
 #else
 #include <unistd.h>
+#include <jmorecfg.h>
+
 #endif
 
 /*
@@ -131,6 +133,7 @@
  *  <8> IOTIME          INT[10]         I/O Request time list           List containing the trigger execution times of the process's I/O
  *                      -               -                                   requests.
  *  <9> IOLIST          CHAR[10]        I/O Request list                List containing the interrupt codes for the process's I/O requests.
+ *  <10>AUX             INT             Auxiliary variable              To simplify the simulator
  *  //
  *  // UNCOMMENT THE APPRPRIATE BLOCK TO USE THIS ONE.
  *  //
@@ -139,8 +142,9 @@
  */
 
 typedef struct process_pcb {
-    int PID, PPID, PRIORITY, STATUS, P_TIME, E_TIME, IOITERATOR, IOTIME[MAX_IOREQUESTS];
+    int PID, PPID, PRIORITY, STATUS, P_TIME, E_TIME, IOITERATOR, IOTIME[MAX_IOREQUESTS], AUX;
     char IOLIST[MAX_IOREQUESTS];
+    boolean PENDINGIO;
     // IOR IOLIST[MAX_IOREQUESTS];
 }PCB;
 
@@ -184,7 +188,8 @@ PCB *bootstrapper, *process_list[MAX_PROCESSES],
     *high_queue[MAX_PROCESSES], *low_queue[MAX_PROCESSES],
     *disc_queue[MAX_PROCESSES], *tape_queue[MAX_PROCESSES],*printer_queue[MAX_PROCESSES];
     /**greatest_priority;*/
-clock_t start_t, end_t, total_t;
+clock_t start_t, end_t;
+double total_t;
 struct timespec tim, tim2;
 
 
@@ -199,6 +204,8 @@ struct timespec tim, tim2;
 // Defaults would be: pid = pid_counter +1, ppid = 0, priority = 0, status = 0, iterator = (0 or MAX_IOREQUESTS?).
 
 PCB *Assemble_PCB(int pid, int ppid, int priority, int status, int p_time, int iterator){
+    int aux = randombytes_uniform(MAX_IOREQUESTS+1); // Decides how many I/O requests will be made randomly, varies from 0 to MAX_IOREQUESTS - 1
+
     bootstrapper = malloc(sizeof(PCB));
     bootstrapper->PID = pid;
     bootstrapper->PPID = ppid;
@@ -206,8 +213,7 @@ PCB *Assemble_PCB(int pid, int ppid, int priority, int status, int p_time, int i
     bootstrapper->STATUS = status;
     bootstrapper->P_TIME = p_time;
     bootstrapper->IOITERATOR = iterator;
-
-    int aux = randombytes_uniform(MAX_IOREQUESTS+1); // Decides how many I/O requests will be made randomly, varies from 0 to MAX_IOREQUESTS - 1
+    bootstrapper->AUX = aux; // Stores the number of I/O requests
 
     // To uncomment this section MAX_IOREQUESTS must be MAX_SERVICE_TIME - 1
     /*if (bootstrapper->P_TIME < MAX_IOREQUESTS){
@@ -273,10 +279,19 @@ PCB *Assemble_PCB(int pid, int ppid, int priority, int status, int p_time, int i
     printf("\n");
 
     if (aux == 0){
+        bootstrapper->PENDINGIO = FALSE;
         bootstrapper->IOITERATOR = -1;
+
+        printf("| IOITERATOR = %d |\n", bootstrapper->IOITERATOR);
+        printf("\n");
+    }
+
+    if (aux > 0){
+        bootstrapper->PENDINGIO =TRUE;
     }
 
     if (aux > 1){
+        bootstrapper->PENDINGIO =TRUE;
         //printf("IOTIME ordenation:\n");
 
         for (int k = 0; k < aux; ++k){
@@ -291,7 +306,7 @@ PCB *Assemble_PCB(int pid, int ppid, int priority, int status, int p_time, int i
         printf("\n");
     }
 
-    // How to initialize P_TIME and E_TIME?
+    // How to initialize E_TIME?
 
     return bootstrapper;
 }
@@ -375,7 +390,7 @@ void Terminate() {
 
 void *Create_Process(void *arg){
     //int idThread = *(int *) arg;
-    clock_t thread_time, temp_time;
+    clock_t thread_time, temp_time = 0;
     double aux;
 
     for (int i = 0; i < MAX_PROCESSES; i++) {
@@ -433,28 +448,61 @@ void *Create_Process(void *arg){
 
 void CPU(PCB *p){
     tim.tv_sec = 0;
-    tim.tv_nsec = 100000000;
+    tim.tv_nsec = 100000000; // 0.1 seconds
 
     for (int i = 0; i < TIMESLICE; ++i) {
         nanosleep(&tim , &tim2);
         p->P_TIME--;
 
-        if (p->IOTIME[p->IOITERATOR] == p->P_TIME){
-            //code
+        if (p->PENDINGIO && p->IOTIME[p->IOITERATOR] == p->P_TIME){
+            p->IOTIME[p->IOITERATOR] = 0;
+
+            //sends p->IOLIST[p->IOITERATOR] to the scheduler
+
+            for (int k = 0; k < p->AUX; ++k){ // Find next IOTIME
+                if (p->IOTIME[k] > p->IOTIME[p->IOITERATOR]){
+                    p->IOITERATOR = k;
+                }
+            }
+
+            if (p->IOTIME[p->IOITERATOR] == 0){
+                p->PENDINGIO = FALSE;
+            }
         }
     }
 }
 
 void Disk_Handler(){
+    int aux = T_DISC;
+    tim.tv_sec = 0;
+    tim.tv_nsec = 100000000;
 
+    while (aux){
+        nanosleep(&tim , &tim2);
+        aux--;
+    }
 }
 
 void Tape_Handler(){
+    int aux = T_TAPE;
+    tim.tv_sec = 0;
+    tim.tv_nsec = 100000000;
 
+    while (aux){
+        nanosleep(&tim , &tim2);
+        aux--;
+    }
 }
 
 void Printer_Handler(){
+    int aux = T_PRINTER;
+    tim.tv_sec = 0;
+    tim.tv_nsec = 100000000;
 
+    while (aux){
+        nanosleep(&tim , &tim2);
+        aux--;
+    }
 }
 
 void Scheduler(){
@@ -516,6 +564,12 @@ int main(int argc, char const *argv[]) {
 
     printf("\n");
     printf("==> Simulator end time: %6.3f\n", (end_t * 1000. / CLOCKS_PER_SEC));
+    printf("\n");
+
+    total_t = end_t - start_t;
+
+    printf("\n");
+    printf("==> Simulator total time: %6.3f s\n", (total_t * 1000. / CLOCKS_PER_SEC));
     printf("\n");
 
     pthread_exit(NULL);
