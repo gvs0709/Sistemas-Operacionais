@@ -101,7 +101,7 @@
 #define DISC 'd'
 #define TAPE 't'
 #define PRINTER 'p'
-#define NTHREADS  1
+#define NTHREADS  2
 #define T 3
 #define MAX_PRIORITY 3
 #define IO_TYPE 3
@@ -183,7 +183,7 @@ typedef struct process_pcb {
  *  <9> select_IO       UNSIGNED INT    Stores the time of the IO types Array with 3 positions, one for each I/O type time.
  */
 
-unsigned int pid_counter = 100, select_IO[IO_TYPE];
+unsigned int pid_counter = 100, select_IO[IO_TYPE], process_created = 0, processes_processed = 0, process_terminated = 0;
 PCB *bootstrapper, *process_list[MAX_PROCESSES],
     *high_queue[MAX_PROCESSES], *low_queue[MAX_PROCESSES],
     *disc_queue[MAX_PROCESSES], *tape_queue[MAX_PROCESSES],*printer_queue[MAX_PROCESSES];
@@ -398,6 +398,7 @@ void *Create_Process(void *arg){
             printf("*------------------------------First process created------------------------------*\n");
 
             process_list[i] = Assemble_PCB(pid_counter, getppid(), MAX_PRIORITY, 0, randombytes_uniform(MAX_SERVICE_TIME) + MIN_SERVICE_TIME, 0);
+            process_created++;
 
             printf(" process_list[%d] = {pid: %d, ppid: %d, priority: %d, status: %d, service time: %d, IOiterator: %d}\n", i, process_list[i]->PID, process_list[i]->PPID, process_list[i]->PRIORITY, process_list[i]->STATUS, process_list[i]->P_TIME, process_list[i]->IOITERATOR);
             printf("\n");
@@ -425,6 +426,7 @@ void *Create_Process(void *arg){
             #endif
 
             process_list[i] = Assemble_PCB(pid_counter, getppid(), MAX_PRIORITY, 0, randombytes_uniform(MAX_SERVICE_TIME) + MIN_SERVICE_TIME, 0);
+            process_created++;
 
             printf(" process_list[%d] = {pid: %d, ppid: %d, priority: %d, status: %d, service time: %d, IOiterator: %d}\n", i, process_list[i]->PID, process_list[i]->PPID, process_list[i]->PRIORITY, process_list[i]->STATUS, process_list[i]->P_TIME, process_list[i]->IOITERATOR);
             printf("\n");
@@ -445,6 +447,12 @@ void *Create_Process(void *arg){
     free(arg);
     pthread_exit(NULL);
 }
+
+/*
+ *  FUNCTION: CPU     - void
+ *  ---------------------
+ *  Function responsable to simulate the use of the CPU by a process, using timeslice and comunicating with the scheduler.
+ */
 
 void CPU(PCB *p){
     tim.tv_sec = 0;
@@ -505,8 +513,13 @@ void Printer_Handler(){
     }
 }
 
-void Scheduler(){
+void *Scheduler(void *arg){
+    while (process_terminated < MAX_PROCESSES){
+        //code
+    }
 
+    free(arg);
+    pthread_exit(NULL);
 }
 
 /*
@@ -544,8 +557,18 @@ int main(int argc, char const *argv[]) {
 
         *arg = t;
 
-        if (pthread_create(&tid_sistema[t], NULL, Create_Process, (void*) arg)) {
-            printf("--ERROR: pthread_create()\n"); exit(-1);
+        if (t == 0) {
+            if (pthread_create(&tid_sistema[t], NULL, Create_Process, (void *) arg)) {
+                printf("--ERROR: pthread_create()\n");
+                exit(-1);
+            }
+        }
+
+        if (t == 1){
+            if (pthread_create(&tid_sistema[t], NULL, Scheduler, (void *) arg)) {
+                printf("--ERROR: pthread_create()\n");
+                exit(-1);
+            }
         }
     }
 
