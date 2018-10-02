@@ -513,6 +513,83 @@ void Printer_Handler(){
     }
 }
 
+/*----------*----------*----------*----------*----------*----------*
+ * Toying around in a new function to guarantee there's no collision.
+ */
+
+void *Prototype_Scheduler(void *arg){
+
+    // Thse shouldn't be initialized here - they're supposed to follow the queue loaders.
+    unsigned int HQ_Count = 0, LQ_Count = 0, DQ_Count = 0, TQ_Count = 0, PQ_Count = 0;
+
+    // These SHOULD be initialized here, however - they're the scheduler's internal activity counters: they keep track of WHERE the scheduler is in the round-robins.
+    unsigned int HQ_Walker = 0, LQ_Walker = 0, DQ_Walker = 0, TQ_Walker = 0, PQ_Walker = 0;
+
+    // While there are still processes to finish, patroll EVERY queue!
+    while (process_terminated < MAX_PROCESSES){
+
+        // CHECAGEM DE PREEMPÇÃO DO CPU
+        if ( /* timeslice acabou */ ){
+            /*
+            Preempta o processo no cpu pro último slot da low_queue, passa o próximo na high_queue pro cpu
+            Tem um jeito de pegar diretamente quem tá na CPU?
+
+            low_queue[LQ_Count] = <Ponteiro do PCB do processo na cpu>;     // Preempta o processo pra low priority.
+            if ( LQ_Count++ > MAX_PROCESSES ){                              // Acrescenta de +1. Se tiver passado, faz a volta.
+                LQ_Count = 0;
+            }
+
+            CPU( high_queue[HQ_walker] );           // Passa o próximo na high_queue pro CPU.
+            if ( HQ_Walker++ > MAX_PROCESSES ){     // Acrescenta de +1. Se tiver passado, faz a volta.
+                HQ_Walker = 0;
+            }
+            */
+        }
+        // FINISHED DISC QUEUE CHECK.
+        // TAPE AND PRINTER ARE THE SAME, BUT DUMPS IN HIGH_QUEUE INSTEAD OF LOW.
+        if( DQ_Walker > DQ_Count ){                 // If this ever happens, then the queue advanced to the point of going round: we must reach the end, and go round as well, continuing with the next IF, immediately after this one.
+            while ( DQ_Walker > DQ_Count ){
+                // Disc I/O processes got o low priority queue.
+                low_queue[LQ_Count] = disc_finished_queue[DQ_Walker];
+                disc_finished_queue[DQ_Walker] = NULL;
+
+                if ( LQ_Count++ > MAX_PROCESSES ){  // Acrescenta de +1. Se tiver passado, faz a volta.
+                    LQ_Count = 0;
+                }
+
+                if ( DQ_Walker++ > MAX_PROCESSES ){ // Acrescenta de +1. Se tiver passado, faz a volta.
+                    DQ_Walker = 0;
+                }
+            }
+        }
+        if( DQ_Walker < DQ_Count ){                 // Catch up with the finished process queue.
+            while ( DQ_Walker < DQ_Count ){
+                // Disc I/O processes got o low priority queue.
+                low_queue[LQ_Count] = disc_finished_queue[DQ_Walker];
+                disc_finished_queue[DQ_Walker] = NULL;
+
+                if ( LQ_Count++ > MAX_PROCESSES ){  // Acrescenta de +1. Se tiver passado, faz a volta.
+                    LQ_Count = 0;
+                }
+            }
+        }
+        /* Queues:
+        high_queue
+        low_queue
+        disc_finished_queue
+        tape_finished_queue
+        printer_finished_queue
+        */
+    }
+
+    free(arg);
+    pthread_exit(NULL);
+}
+
+/*
+ * Toying around in a new function to guarantee there's no collision.
+ *----------*----------*----------*----------*----------*----------*/
+
 void *Scheduler(void *arg){
     while (process_terminated < MAX_PROCESSES){
         //code
