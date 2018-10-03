@@ -190,7 +190,7 @@ PCB *bootstrapper, *process_list[MAX_PROCESSES],
 clock_t start_t, end_t;
 double total_t;
 struct timespec tim, tim2;
-pthread_mutex_t exited_cpu_mutex;
+//pthread_mutex_t exited_cpu_mutex;
 bool cpu_running = false, Round_Robin = false;
 
 
@@ -519,7 +519,7 @@ void *CPU(void *arg){
 
         if (CPU_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
             CPU_Count = 0;
-            Round_Robin = true;
+            //Round_Robin = true;
         }
 
         printf("--Process %d preempted\n", p->PID);
@@ -533,7 +533,7 @@ void *CPU(void *arg){
 
             if (HQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
                 HQ_Count = 0;
-                Round_Robin == true;
+                //Round_Robin == true;
             }
 
             printf("--Process %d requested I/O\n", p->PID);
