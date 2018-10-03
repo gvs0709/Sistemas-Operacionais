@@ -183,15 +183,15 @@ typedef struct process_pcb {
  *  <9> select_IO       UNSIGNED INT    Stores the time of the IO types Array with 3 positions, one for each I/O type time.
  */
 
-unsigned int pid_counter = 100, select_IO[IO_TYPE], process_created = 0, processes_processed = 0, process_terminated = 0, HQ_Count = 0, LQ_Count = 0, DQ_Count = 0, TQ_Count = 0, PQ_Count = 0;
-
+unsigned int pid_counter = 100, select_IO[IO_TYPE], process_created = 0, processes_processed = 0, process_terminated = 0, HQ_Count = 0, LQ_Count = 0, DQ_Count = 0, TQ_Count = 0, PQ_Count = 0, CPU_Count = 0;
 PCB *bootstrapper, *process_list[MAX_PROCESSES],
     *high_queue[MAX_PROCESSES], *low_queue[MAX_PROCESSES],
-    *disc_queue[MAX_PROCESSES], *tape_queue[MAX_PROCESSES],*printer_queue[MAX_PROCESSES], *exited_cpu = NULL;
-/**greatest_priority;*/
+    *disc_queue[MAX_PROCESSES], *tape_queue[MAX_PROCESSES],*printer_queue[MAX_PROCESSES], *exited_cpu[MAX_PROCESSES];
 clock_t start_t, end_t;
 double total_t;
 struct timespec tim, tim2;
+pthread_mutex_t exited_cpu_mutex;
+bool cpu_running = false, Round_Robin = false;
 
 
 /*
@@ -461,6 +461,8 @@ void *Create_Process(void *arg){
  */
 
 void *CPU(void *arg){
+    cpu_running = true;
+
     PCB *p = (PCB *) arg;
     int control = 0; // auxiliary variable to store i
     bool io = false;
@@ -513,7 +515,12 @@ void *CPU(void *arg){
 
     if (control == TIMESLICE){
         p->STATUS = 2; // Process preempted
-        exited_cpu = p;
+        exited_cpu[CPU_Count] = p;
+
+        if (CPU_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+            CPU_Count = 0;
+            Round_Robin = true;
+        }
 
         printf("--Process %d preempted\n", p->PID);
         printf("\n");
@@ -522,7 +529,12 @@ void *CPU(void *arg){
     else{ // control > TIMESLICE
         if (io){
             p->STATUS = 3; // I/O request
-            exited_cpu = p;
+            exited_cpu[CPU_Count] = p;
+
+            if (HQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                HQ_Count = 0;
+                Round_Robin == true;
+            }
 
             printf("--Process %d requested I/O\n", p->PID);
             printf("\n");
@@ -536,9 +548,10 @@ void *CPU(void *arg){
         }
     }
 
-    printf("--CPU thread finished\n");
+    printf("--CPU thread finished (%d)\n", p->PID);
     printf("\n");
 
+    cpu_running = false;
     free(arg);
     pthread_exit(NULL);
 }
@@ -684,12 +697,10 @@ void *Printer_Handler(void *arg){
 void *Scheduler(void *arg){
     //int idThread = *(int *) arg;
 
-    // Thse shouldn't be initialized here - they're supposed to follow the queue loaders.
-    //unsigned int HQ_Count = 0, LQ_Count = 0, DQ_Count = 0, TQ_Count = 0, PQ_Count = 0;
-
     // These SHOULD be initialized here, however - they're the scheduler's internal activity counters: they keep track of WHERE the scheduler is in the round-robins.
-    unsigned int HQ_Walker = 0, LQ_Walker = 0, DQ_Walker = 0, TQ_Walker = 0, PQ_Walker = 0;
+    unsigned int HQ_Walker = 0, LQ_Walker = 0, DQ_Walker = 0, TQ_Walker = 0, PQ_Walker = 0, CPU_Walker = 0;
     double aux;
+    bool first = true, HQ_Round_Robin = false, LQ_Round_Robin = false, DQ_Round_Robin = false, TQ_Round_Robin = false, PQ_Round_Robin = false;
     pthread_t CPU_thread = NTHREADS + 1, Disk_Thread = NTHREADS + 2, Tape_Thread = NTHREADS + 3, Printer_Thread = NTHREADS + 4;
     clock_t thread_time;
 
@@ -709,35 +720,85 @@ void *Scheduler(void *arg){
             aux = (thread_time - start_t) * 1000. / CLOCKS_PER_SEC;
 
             printf("> Process %d arrived in high_queue[%d] at %6.3f + %6.3f\n", high_queue[HQ_Count]->PID, HQ_Count, (start_t * 1000. / CLOCKS_PER_SEC), aux);
+            printf("\n");
 
             if (HQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
                 HQ_Count = 0;
+                HQ_Round_Robin = true;
             }
         }
 
-        if (high_queue[HQ_Walker]->STATUS == 0){ // Send a process to CPU
-            high_queue[HQ_Walker]->STATUS = 1; // Set status to running
-            //aux = high_queue[HQ_Walker]->PID; // Maybe this is useless
-            //processes_processed++;
+        //if(!HQ_Round_Robin) {
+            if (HQ_Walker != HQ_Count && HQ_Walker < HQ_Count && high_queue[HQ_Walker]->STATUS == 0) { // Send a process to CPU
+                //aux = high_queue[HQ_Walker]->PID; // Maybe this is useless
+                //processes_processed++;
 
-            if (pthread_create(&CPU_thread, NULL, CPU, (void *)high_queue[HQ_Walker])) { // Passes a process to CPU
-                printf("--ERROR: pthread_create()\n");
-                exit(-1);
+                if (first){
+                    first = false;
+                }
+
+                else {
+                    while (cpu_running) {} // Waits the process that is using to finish CPU
+                }
+
+                high_queue[HQ_Walker]->STATUS = 1; // Set status to running
+
+                if (pthread_create(&CPU_thread, NULL, CPU, (void *) high_queue[HQ_Walker])) { // Passes a process to CPU
+                    printf("--ERROR: pthread_create()\n");
+                    exit(-1);
+                }
+
+                if (HQ_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                    HQ_Walker = 0;
+                    //HQ_Round_Robin = false;
+                }
             }
+        //}
 
-            if ( HQ_Walker++ > MAX_PROCESSES ){ // Acrescenta de +1. Se tiver passado, faz a volta.
-                HQ_Walker = 0;
+        //if (HQ_Round_Robin){
+            if (HQ_Walker != HQ_Count && HQ_Walker > HQ_Count && high_queue[HQ_Walker]->STATUS == 0) { // Send a process to CPU
+                //aux = high_queue[HQ_Walker]->PID; // Maybe this is useless
+                //processes_processed++;
+
+                if (first){
+                    first = false;
+                }
+
+                else {
+                    while (cpu_running) {} // Waits the process that is using to finish CPU
+                }
+
+                high_queue[HQ_Walker]->STATUS = 1; // Set status to running
+
+                if (pthread_create(&CPU_thread, NULL, CPU, (void *) high_queue[HQ_Walker])) { // Passes a process to CPU
+                    printf("--ERROR: pthread_create()\n");
+                    exit(-1);
+                }
+
+                if (HQ_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                    HQ_Walker = 0;
+                    HQ_Round_Robin = false;
+                }
             }
-        }
+        //}
 
-        if(exited_cpu != NULL) {
-            if (exited_cpu->STATUS == 2) { // CHECAGEM DE PREEMPÇÃO DO CPU
+        if(exited_cpu[CPU_Walker] != NULL/* && !Round_Robin*/) {
+            if (CPU_Walker != CPU_Count && CPU_Walker < CPU_Count && exited_cpu[CPU_Walker]->STATUS == 2) { // CHECAGEM DE PREEMPÇÃO DO CPU
                 //Preempta o processo no cpu pro último slot da low_queue, passa o próximo na high_queue pro cpu
                 //Tem um jeito de pegar diretamente quem tá na CPU?
 
-                low_queue[LQ_Count] = exited_cpu; // <Ponteiro do PCB do processo na cpu>;     // Preempta o processo pra low priority.
+                //pthread_mutex_lock(&exited_cpu_mutex);
+                low_queue[LQ_Count] = exited_cpu[CPU_Walker]; // <Ponteiro do PCB do processo na cpu>;     // Preempta o processo pra low priority.
+
+                if (CPU_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                    CPU_Walker = 0;
+                    //Round_Robin == false;
+                }
+
+                //pthread_mutex_unlock(&exited_cpu_mutex);
+
                 printf("> Process %d arrived at low_queue[%d]\n", low_queue[LQ_Count]->PID, LQ_Count);
-                exited_cpu = NULL;
+                printf("\n");
 
                 if (LQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
                     LQ_Count = 0;
@@ -764,31 +825,174 @@ void *Scheduler(void *arg){
 
             }
 
-            if (exited_cpu->STATUS == 3){ // Checagem de pedido de E/S
-                switch (exited_cpu->IOLIST[exited_cpu->OLD_ITERATOR]){
+            if (CPU_Walker != CPU_Count && CPU_Walker < CPU_Count && exited_cpu[CPU_Walker]->STATUS == 3){ // Checagem de pedido de E/S
+                switch (exited_cpu[CPU_Walker]->IOLIST[exited_cpu[CPU_Walker]->OLD_ITERATOR]){
                     case 'd':
-                        disc_queue[DQ_Count] = exited_cpu;
+                        //pthread_mutex_lock(&exited_cpu_mutex);
+                        disc_queue[DQ_Count] = exited_cpu[CPU_Walker];
+
+                        if (CPU_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                            CPU_Walker = 0;
+                            //Round_Robin = false;
+                        }
+                        //pthread_mutex_unlock(&exited_cpu_mutex);
+
+                        printf("> Process %d arrived at disc_queue[%d]\n", disc_queue[DQ_Count]->PID, DQ_Count);
+                        printf("\n");
 
                         if (DQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
                             DQ_Count = 0;
+                            //DQ_Round_Robin = true;
                         }
 
                         break;
 
                     case 't':
-                        tape_queue[TQ_Count] = exited_cpu;
+                        //pthread_mutex_lock(&exited_cpu_mutex);
+                        tape_queue[TQ_Count] = exited_cpu[CPU_Walker];
+
+                        if (CPU_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                            CPU_Walker = 0;
+                            //Round_Robin = false;
+                        }
+                        //pthread_mutex_unlock(&exited_cpu_mutex);
+
+                        printf("> Process %d arrived at tape_queue[%d]\n", tape_queue[TQ_Count]->PID, TQ_Count);
+                        printf("\n");
 
                         if (TQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
                             TQ_Count = 0;
+                            //TQ_Round_Robin = true;
                         }
 
                         break;
 
                     case 'p':
-                        printer_queue[PQ_Count] = exited_cpu;
+                        //pthread_mutex_lock(&exited_cpu_mutex);
+                        printer_queue[PQ_Count] = exited_cpu[CPU_Walker];
+
+                        if (CPU_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                            CPU_Walker = 0;
+                            //Round_Robin = false;
+                        }
+                        //pthread_mutex_unlock(&exited_cpu_mutex);
+
+                        printf("> Process %d arrived at printer_queue[%d]\n", printer_queue[PQ_Count]->PID, PQ_Count);
+                        printf("\n");
 
                         if (PQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
                             PQ_Count = 0;
+                            //PQ_Round_Robin = true;
+                        }
+
+                        break;
+                }
+
+            }
+        }
+
+        if(exited_cpu[CPU_Walker] != NULL/* && Round_Robin*/) {
+            if (CPU_Walker != CPU_Count && CPU_Walker > CPU_Count && exited_cpu[CPU_Walker]->STATUS == 2) { // CHECAGEM DE PREEMPÇÃO DO CPU
+                //Preempta o processo no cpu pro último slot da low_queue, passa o próximo na high_queue pro cpu
+                //Tem um jeito de pegar diretamente quem tá na CPU?
+
+                //pthread_mutex_lock(&exited_cpu_mutex);
+                low_queue[LQ_Count] = exited_cpu[CPU_Walker]; // <Ponteiro do PCB do processo na cpu>;     // Preempta o processo pra low priority.
+
+                if (CPU_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                    CPU_Walker = 0;
+                    //Round_Robin == false;
+                }
+
+                //pthread_mutex_unlock(&exited_cpu_mutex);
+
+                printf("> Process %d arrived at low_queue[%d]\n", low_queue[LQ_Count]->PID, LQ_Count);
+                printf("\n");
+
+                if (LQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                    LQ_Count = 0;
+                    //LQ_Round_Robin = false;
+                }
+
+                /*if (HQ_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                    HQ_Walker = 0;
+                }*/
+
+                //while (HQ_Walker > HQ_Count) {} // Waits a new process arrive at high_queue --> this is wrong! Como não deixar HQ_Walker "passar" HQ_Count? (isso considerando walker a cabeça da fila e count o fim
+
+                //CPU( high_queue[HQ_Walker] );           // Passa o próximo na high_queue pro CPU.
+                /*high_queue[HQ_Walker]->STATUS = 1; // Set status to running --> do jeito que está parece que da ruim aqui eventualmente (bem rápido até)
+                //aux2 = high_queue[HQ_Walker]->PID;
+
+                if (pthread_create(&CPU_thread, NULL, CPU, (void *) high_queue[HQ_Walker])) { // Passes a process to CPU
+                    printf("--ERROR: pthread_create()\n");
+                    exit(-1);
+                }*/
+
+                /*if ( HQ_Walker++ > MAX_PROCESSES ){     // Acrescenta de +1. Se tiver passado, faz a volta.
+                    HQ_Walker = 0;
+                }*/
+
+            }
+
+            if (CPU_Walker != CPU_Count && CPU_Walker > CPU_Count && exited_cpu[CPU_Walker]->STATUS == 3){ // Checagem de pedido de E/S
+                switch (exited_cpu[CPU_Walker]->IOLIST[exited_cpu[CPU_Walker]->OLD_ITERATOR]){
+                    case 'd':
+                        //pthread_mutex_lock(&exited_cpu_mutex);
+                        disc_queue[DQ_Count] = exited_cpu[CPU_Walker];
+
+                        if (CPU_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                            CPU_Walker = 0;
+                            //Round_Robin = false;
+                        }
+                        //pthread_mutex_unlock(&exited_cpu_mutex);
+
+                        printf("> Process %d arrived at disc_queue[%d]\n", disc_queue[DQ_Count]->PID, DQ_Count);
+                        printf("\n");
+
+                        if (DQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                            DQ_Count = 0;
+                            //DQ_Round_Robin = true;
+                        }
+
+                        break;
+
+                    case 't':
+                        //pthread_mutex_lock(&exited_cpu_mutex);
+                        tape_queue[TQ_Count] = exited_cpu[CPU_Walker];
+
+                        if (CPU_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                            CPU_Walker = 0;
+                            //Round_Robin = false;
+                        }
+                        //pthread_mutex_unlock(&exited_cpu_mutex);
+
+                        printf("> Process %d arrived at tape_queue[%d]\n", tape_queue[TQ_Count]->PID, TQ_Count);
+                        printf("\n");
+
+                        if (TQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                            TQ_Count = 0;
+                            //TQ_Round_Robin = true;
+                        }
+
+                        break;
+
+                    case 'p':
+                        //pthread_mutex_lock(&exited_cpu_mutex);
+                        printer_queue[PQ_Count] = exited_cpu[CPU_Walker];
+
+                        if (CPU_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                            CPU_Walker = 0;
+                            //Round_Robin = false;
+                        }
+                        //pthread_mutex_unlock(&exited_cpu_mutex);
+
+                        printf("> Process %d arrived at printer_queue[%d]\n", printer_queue[PQ_Count]->PID, PQ_Count);
+                        printf("\n");
+
+                        if (PQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                            PQ_Count = 0;
+                            //PQ_Round_Robin = true;
                         }
 
                         break;
@@ -830,6 +1034,15 @@ int main(int argc, char const *argv[]) {
     if (sodium_init() < 0) {
         printf("Panic! The Sodium library couldn't be initialized, it is not safe to use");
         return 1;
+    }
+
+    for (int i = 0; i < MAX_PROCESSES; ++i) {
+        high_queue[i] = NULL;
+        low_queue[i] = NULL;
+        disc_queue[i] = NULL;
+        tape_queue[i] = NULL;
+        printer_queue[i] = NULL;
+        exited_cpu[i] = NULL;
     }
 
     select_IO[0] = T_DISC;
