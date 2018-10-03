@@ -142,7 +142,7 @@
  */
 
 typedef struct process_pcb {
-    int PID, PPID, PRIORITY, STATUS, P_TIME, E_TIME, IOITERATOR, IOTIME[MAX_IOREQUESTS], AUX;
+    int PID, PPID, PRIORITY, STATUS, P_TIME, E_TIME, IOITERATOR, IOTIME[MAX_IOREQUESTS], AUX, OLD_ITERATOR;
     char IOLIST[MAX_IOREQUESTS];
     boolean PENDINGIO;
     // IOR IOLIST[MAX_IOREQUESTS];
@@ -187,8 +187,8 @@ unsigned int pid_counter = 100, select_IO[IO_TYPE], process_created = 0, process
 
 PCB *bootstrapper, *process_list[MAX_PROCESSES],
     *high_queue[MAX_PROCESSES], *low_queue[MAX_PROCESSES],
-    *disc_queue[MAX_PROCESSES], *tape_queue[MAX_PROCESSES],*printer_queue[MAX_PROCESSES];
-    /**greatest_priority;*/
+    *disc_queue[MAX_PROCESSES], *tape_queue[MAX_PROCESSES],*printer_queue[MAX_PROCESSES], *exited_cpu = NULL;
+/**greatest_priority;*/
 clock_t start_t, end_t;
 double total_t;
 struct timespec tim, tim2;
@@ -202,7 +202,7 @@ struct timespec tim, tim2;
  */
 
 // Fuck me, C doesn't support default function values.
-// Defaults would be: pid = pid_counter +1, ppid = 0, priority = 0, status = 0, iterator = (0 or MAX_IOREQUESTS?).
+// Defaults would be: pid = pid_counter +1, ppid = 0, priority = 0, status = 0, iterator = 0.
 
 PCB *Assemble_PCB(int pid, int ppid, int priority, int status, int p_time, int iterator){
     int aux = randombytes_uniform(MAX_IOREQUESTS+1); // Decides how many I/O requests will be made randomly, varies from 0 to MAX_IOREQUESTS - 1
@@ -214,6 +214,7 @@ PCB *Assemble_PCB(int pid, int ppid, int priority, int status, int p_time, int i
     bootstrapper->STATUS = status;
     bootstrapper->P_TIME = p_time;
     bootstrapper->IOITERATOR = iterator;
+    bootstrapper->OLD_ITERATOR = iterator - 1; // Initialize OLD_ITERATOR as -1
     bootstrapper->AUX = aux; // Stores the number of I/O requests
 
     // To uncomment this section MAX_IOREQUESTS must be MAX_SERVICE_TIME - 1
@@ -404,18 +405,18 @@ void *Create_Process(void *arg){
             printf(" process_list[%d] = {pid: %d, ppid: %d, priority: %d, status: %d, service time: %d, IOiterator: %d}\n", i, process_list[i]->PID, process_list[i]->PPID, process_list[i]->PRIORITY, process_list[i]->STATUS, process_list[i]->P_TIME, process_list[i]->IOITERATOR);
             printf("\n");
 
-            high_queue[i] = process_list[i];
+            /*high_queue[i] = process_list[i];
             HQ_Count++;
 
             thread_time = clock();
             aux = (thread_time - start_t) * 1000. / CLOCKS_PER_SEC;
 
-            printf(" Process %d arrived in high_queue[%d] at %6.3f + %6.3f\n", high_queue[i]->PID, i, (start_t * 1000. / CLOCKS_PER_SEC), aux);
+            printf(" Process %d arrived in high_queue[%d] at %6.3f + %6.3f\n", high_queue[i]->PID, i, (start_t * 1000. / CLOCKS_PER_SEC), aux);*/
             printf("*--------------------------------------------------------------------------------*");
             printf("\n");
 
             pid_counter++;
-            temp_time = thread_time;
+            //temp_time = thread_time;
         }
 
         else{
@@ -434,18 +435,18 @@ void *Create_Process(void *arg){
             printf(" process_list[%d] = {pid: %d, ppid: %d, priority: %d, status: %d, service time: %d, IOiterator: %d}\n", i, process_list[i]->PID, process_list[i]->PPID, process_list[i]->PRIORITY, process_list[i]->STATUS, process_list[i]->P_TIME, process_list[i]->IOITERATOR);
             printf("\n");
 
-            high_queue[i] = process_list[i];
+            /*high_queue[i] = process_list[i];
             HQ_Count++;
 
             thread_time = clock();
             aux = (thread_time - temp_time) * 1000. / CLOCKS_PER_SEC;
 
-            printf(" Process %d arrived in high_queue[%d] at %6.3f + %6.3f\n", high_queue[i]->PID, i, (temp_time * 1000. / CLOCKS_PER_SEC), aux);
+            printf(" Process %d arrived in high_queue[%d] at %6.3f + %6.3f\n", high_queue[i]->PID, i, (temp_time * 1000. / CLOCKS_PER_SEC), aux);*/
             printf("*--------------------------------------------------------------------------------*");
             printf("\n");
 
             pid_counter++;
-            temp_time = thread_time;
+            //temp_time = thread_time;
         }
     }
 
@@ -459,9 +460,10 @@ void *Create_Process(void *arg){
  *  Function responsable to simulate the use of the CPU by a process, using timeslice and comunicating with the scheduler.
  */
 
-void *CPU(void *args){
-    PCB *p = (PCB *) args;
-    int control = 0;
+void *CPU(void *arg){
+    PCB *p = (PCB *) arg;
+    int control = 0; // auxiliary variable to store i
+    boolean io = FALSE;
 
     tim.tv_sec = 0;
     tim.tv_nsec = 100000000; // 0.1 seconds
@@ -479,12 +481,17 @@ void *CPU(void *args){
                 p->IOTIME[p->IOITERATOR] = 0;
 
                 //sends p->IOLIST[p->IOITERATOR] to the scheduler
+                p->OLD_ITERATOR = p->IOITERATOR;
 
                 for (int k = 0; k < p->AUX; ++k){ // Find next IOTIME
                     if (p->IOTIME[k] > p->IOTIME[p->IOITERATOR]){
                         p->IOITERATOR = k;
                     }
                 }
+
+                i = TIMESLICE;
+                control = i;
+                io = TRUE;
 
                 if (p->IOTIME[p->IOITERATOR] == 0){
                     p->PENDINGIO = FALSE;
@@ -497,7 +504,7 @@ void *CPU(void *args){
         else{ // Process terminated
             i = TIMESLICE;
             control = i;
-            control++;
+            control++; // Makes control the same as
             process_terminated++;
             break;
         }
@@ -506,19 +513,40 @@ void *CPU(void *args){
 
     if (control == TIMESLICE){
         p->STATUS = 2; // Process preempted
+        exited_cpu = p;
+
+        printf("--Process %d preempted\n", p->PID);
+        printf("\n");
     }
 
-    else{
-        p->STATUS = 3; // Process terminated
+    else{ // control > TIMESLICE
+        if (io){
+            p->STATUS = 3; // I/O request
+            exited_cpu = p;
+
+            printf("--Process %d requested I/O\n", p->PID);
+            printf("\n");
+        }
+
+        else{ // io = FALSE
+            p->STATUS = 4; // Process terminated
+
+            printf("--Process %d terminated\n", p->PID);
+            printf("\n");
+        }
     }
 
     printf("--CPU thread finished\n");
-    free(args);
+    printf("\n");
+
+    free(arg);
     pthread_exit(NULL);
 }
 
-void Disk_Handler(){
+void *Disk_Handler(void *arg){
+    PCB *p = (PCB *) arg;
     int aux = T_DISC;
+
     tim.tv_sec = 0;
     tim.tv_nsec = 100000000; // 0.1 seconds
 
@@ -526,10 +554,17 @@ void Disk_Handler(){
         nanosleep(&tim , &tim2);
         aux--;
     }
+
+    p->STATUS = 0; // Not running
+
+    free(arg);
+    pthread_exit(NULL);
 }
 
-void Tape_Handler(){
+void *Tape_Handler(void *arg){
+    PCB *p = (PCB *) arg;
     int aux = T_TAPE;
+
     tim.tv_sec = 0;
     tim.tv_nsec = 100000000;
 
@@ -537,10 +572,17 @@ void Tape_Handler(){
         nanosleep(&tim , &tim2);
         aux--;
     }
+
+    p->STATUS = 0; // Not running
+
+    free(arg);
+    pthread_exit(NULL);
 }
 
-void Printer_Handler(){
+void *Printer_Handler(void *arg){
+    PCB *p = (PCB *) arg;
     int aux = T_PRINTER;
+
     tim.tv_sec = 0;
     tim.tv_nsec = 100000000;
 
@@ -548,6 +590,11 @@ void Printer_Handler(){
         nanosleep(&tim , &tim2);
         aux--;
     }
+
+    p->STATUS = 0; // Not running
+
+    free(arg);
+    pthread_exit(NULL);
 }
 
 /*----------*----------*----------*----------*----------*----------*
@@ -642,8 +689,9 @@ void *Scheduler(void *arg){
 
     // These SHOULD be initialized here, however - they're the scheduler's internal activity counters: they keep track of WHERE the scheduler is in the round-robins.
     unsigned int HQ_Walker = 0, LQ_Walker = 0, DQ_Walker = 0, TQ_Walker = 0, PQ_Walker = 0;
-    int aux;
-    pthread_t CPU_thread = NTHREADS + 1;
+    double aux;
+    pthread_t CPU_thread = NTHREADS + 1, Disk_Thread = NTHREADS + 2, Tape_Thread = NTHREADS + 3, Printer_Thread = NTHREADS + 4;
+    clock_t thread_time;
 
     printf("==> Scheduler starting...\n");
     printf("\n");
@@ -651,47 +699,102 @@ void *Scheduler(void *arg){
     while (!process_created){} // Waits until the first process is created
 
     while (process_terminated < MAX_PROCESSES){
-        if (processes_processed == 0){ // Send first process to CPU --> How do i check when the first process is created
+        if (processes_processed <= MAX_PROCESSES){ // If not all processes have been on the high_queue for the first time
+            while (HQ_Count > process_created - 1){} // Waits a new process be created
+
+            high_queue[HQ_Count] = process_list[processes_processed];
+            processes_processed++;
+
+            thread_time = clock(); // NOT DONE!!!
+            aux = (thread_time - start_t) * 1000. / CLOCKS_PER_SEC;
+
+            printf("> Process %d arrived in high_queue[%d] at %6.3f + %6.3f\n", high_queue[HQ_Count]->PID, HQ_Count, (start_t * 1000. / CLOCKS_PER_SEC), aux);
+
+            if (HQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                HQ_Count = 0;
+            }
+        }
+
+        if (high_queue[HQ_Walker]->STATUS == 0){ // Send a process to CPU
             high_queue[HQ_Walker]->STATUS = 1; // Set status to running
             //aux = high_queue[HQ_Walker]->PID; // Maybe this is useless
-            processes_processed++;
+            //processes_processed++;
 
             if (pthread_create(&CPU_thread, NULL, CPU, (void *)high_queue[HQ_Walker])) { // Passes a process to CPU
                 printf("--ERROR: pthread_create()\n");
                 exit(-1);
-            }
-        }
-
-        if (high_queue[HQ_Walker]->STATUS == 2){ // CHECAGEM DE PREEMPÇÃO DO CPU
-            //Preempta o processo no cpu pro último slot da low_queue, passa o próximo na high_queue pro cpu
-            //Tem um jeito de pegar diretamente quem tá na CPU?
-
-            low_queue[LQ_Count] = high_queue[HQ_Walker]; // <Ponteiro do PCB do processo na cpu>;     // Preempta o processo pra low priority.
-            printf("Process %d arrived at low_queue[%d]\n", low_queue[LQ_Count]->PID, LQ_Count);
-
-            if ( LQ_Count++ > MAX_PROCESSES ){ // Acrescenta de +1. Se tiver passado, faz a volta.
-                LQ_Count = 0;
             }
 
             if ( HQ_Walker++ > MAX_PROCESSES ){ // Acrescenta de +1. Se tiver passado, faz a volta.
                 HQ_Walker = 0;
             }
+        }
 
-            while (HQ_Walker > HQ_Count){} // Waits a new process arrive at high_queue --> this is wrong! Como não deixar HQ_Walker "passar" HQ_Count? (isso considerando walker a cabeça da fila e count o fim
+        if(exited_cpu != NULL) {
+            if (exited_cpu->STATUS == 2) { // CHECAGEM DE PREEMPÇÃO DO CPU
+                //Preempta o processo no cpu pro último slot da low_queue, passa o próximo na high_queue pro cpu
+                //Tem um jeito de pegar diretamente quem tá na CPU?
 
-            //CPU( high_queue[HQ_Walker] );           // Passa o próximo na high_queue pro CPU.
-            high_queue[HQ_Walker]->STATUS = 1; // Set status to running --> do jeito que está parece que da ruim aqui eventualmente (bem rápido até)
-            aux = high_queue[HQ_Walker]->PID;
+                low_queue[LQ_Count] = exited_cpu; // <Ponteiro do PCB do processo na cpu>;     // Preempta o processo pra low priority.
+                printf("> Process %d arrived at low_queue[%d]\n", low_queue[LQ_Count]->PID, LQ_Count);
+                exited_cpu = NULL;
 
-            if (pthread_create(&CPU_thread, NULL, CPU, (void *)high_queue[HQ_Walker])) { // Passes a process to CPU
-                printf("--ERROR: pthread_create()\n");
-                exit(-1);
+                if (LQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                    LQ_Count = 0;
+                }
+
+                /*if (HQ_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                    HQ_Walker = 0;
+                }*/
+
+                //while (HQ_Walker > HQ_Count) {} // Waits a new process arrive at high_queue --> this is wrong! Como não deixar HQ_Walker "passar" HQ_Count? (isso considerando walker a cabeça da fila e count o fim
+
+                //CPU( high_queue[HQ_Walker] );           // Passa o próximo na high_queue pro CPU.
+                /*high_queue[HQ_Walker]->STATUS = 1; // Set status to running --> do jeito que está parece que da ruim aqui eventualmente (bem rápido até)
+                //aux2 = high_queue[HQ_Walker]->PID;
+
+                if (pthread_create(&CPU_thread, NULL, CPU, (void *) high_queue[HQ_Walker])) { // Passes a process to CPU
+                    printf("--ERROR: pthread_create()\n");
+                    exit(-1);
+                }*/
+
+                /*if ( HQ_Walker++ > MAX_PROCESSES ){     // Acrescenta de +1. Se tiver passado, faz a volta.
+                    HQ_Walker = 0;
+                }*/
+
             }
 
-            /*if ( HQ_Walker++ > MAX_PROCESSES ){     // Acrescenta de +1. Se tiver passado, faz a volta.
-                HQ_Walker = 0;
-            }*/
+            if (exited_cpu->STATUS == 3){ // Checagem de pedido de E/S
+                switch (exited_cpu->IOLIST[exited_cpu->OLD_ITERATOR]){
+                    case 'd':
+                        disc_queue[DQ_Count] = exited_cpu;
 
+                        if (DQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                            DQ_Count = 0;
+                        }
+
+                        break;
+
+                    case 't':
+                        tape_queue[TQ_Count] = exited_cpu;
+
+                        if (TQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                            TQ_Count = 0;
+                        }
+
+                        break;
+
+                    case 'p':
+                        printer_queue[PQ_Count] = exited_cpu;
+
+                        if (PQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                            PQ_Count = 0;
+                        }
+
+                        break;
+                }
+
+            }
         }
 
         /*if (process_list[aux - 100]->STATUS == 3){ // Process terminated
