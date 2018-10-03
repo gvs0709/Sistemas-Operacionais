@@ -66,7 +66,7 @@
 #include <Windows.h>
 #else
 #include <unistd.h>
-#include <jmorecfg.h>
+#include <stdbool.h>
 
 #endif
 
@@ -144,7 +144,7 @@
 typedef struct process_pcb {
     int PID, PPID, PRIORITY, STATUS, P_TIME, E_TIME, IOITERATOR, IOTIME[MAX_IOREQUESTS], AUX, OLD_ITERATOR;
     char IOLIST[MAX_IOREQUESTS];
-    boolean PENDINGIO;
+    bool PENDINGIO;
     // IOR IOLIST[MAX_IOREQUESTS];
 }PCB;
 
@@ -281,7 +281,7 @@ PCB *Assemble_PCB(int pid, int ppid, int priority, int status, int p_time, int i
     printf("\n");
 
     if (aux == 0){
-        bootstrapper->PENDINGIO = FALSE;
+        bootstrapper->PENDINGIO = false;
         bootstrapper->IOITERATOR = -1;
 
         printf("| IOITERATOR = %d |\n", bootstrapper->IOITERATOR);
@@ -289,11 +289,11 @@ PCB *Assemble_PCB(int pid, int ppid, int priority, int status, int p_time, int i
     }
 
     if (aux > 0){
-        bootstrapper->PENDINGIO =TRUE;
+        bootstrapper->PENDINGIO =true;
     }
 
     if (aux > 1){
-        bootstrapper->PENDINGIO =TRUE;
+        bootstrapper->PENDINGIO =true;
         //printf("IOTIME ordenation:\n");
 
         for (int k = 0; k < aux; ++k){
@@ -463,7 +463,7 @@ void *Create_Process(void *arg){
 void *CPU(void *arg){
     PCB *p = (PCB *) arg;
     int control = 0; // auxiliary variable to store i
-    boolean io = FALSE;
+    bool io = false;
 
     tim.tv_sec = 0;
     tim.tv_nsec = 100000000; // 0.1 seconds
@@ -491,10 +491,10 @@ void *CPU(void *arg){
 
                 i = TIMESLICE;
                 control = i;
-                io = TRUE;
+                io = true;
 
                 if (p->IOTIME[p->IOITERATOR] == 0){
-                    p->PENDINGIO = FALSE;
+                    p->PENDINGIO = false;
                 }
             }
 
@@ -528,7 +528,7 @@ void *CPU(void *arg){
             printf("\n");
         }
 
-        else{ // io = FALSE
+        else{ // io = false
             p->STATUS = 4; // Process terminated
 
             printf("--Process %d terminated\n", p->PID);
