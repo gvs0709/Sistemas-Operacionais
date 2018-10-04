@@ -797,6 +797,7 @@ void *Scheduler(void *arg){
 
                 //pthread_mutex_lock(&exited_cpu_mutex);
                 low_queue[LQ_Count] = exited_cpu[CPU_Walker]; // <Ponteiro do PCB do processo na cpu>;     // Preempta o processo pra low priority.
+                low_queue[LQ_Count]->PRIORITY = 0;
 
                 if (CPU_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
                     CPU_Walker = 0;
@@ -805,7 +806,7 @@ void *Scheduler(void *arg){
 
                 //pthread_mutex_unlock(&exited_cpu_mutex);
 
-                printf("> Process %d arrived at low_queue[%d]\n", low_queue[LQ_Count]->PID, LQ_Count);
+                printf("> Process %d arrived at low_queue[%d] with priority %d\n", low_queue[LQ_Count]->PID, LQ_Count, low_queue[LQ_Count]->PRIORITY);
                 printf("\n");
 
                 if (LQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
@@ -838,6 +839,7 @@ void *Scheduler(void *arg){
                     case 'd':
                         //pthread_mutex_lock(&exited_cpu_mutex);
                         disc_queue[DQ_Count] = exited_cpu[CPU_Walker];
+                        disc_queue[DQ_Count]->PRIORITY = 1;
 
                         if (CPU_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
                             CPU_Walker = 0;
@@ -845,7 +847,7 @@ void *Scheduler(void *arg){
                         }
                         //pthread_mutex_unlock(&exited_cpu_mutex);
 
-                        printf("> Process %d arrived at disc_queue[%d]\n", disc_queue[DQ_Count]->PID, DQ_Count);
+                        printf("> Process %d arrived at disc_queue[%d] with priority %d\n", disc_queue[DQ_Count]->PID, DQ_Count, disc_queue[DQ_Count]->PRIORITY);
                         printf("\n");
 
                         if (DQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
@@ -858,6 +860,7 @@ void *Scheduler(void *arg){
                     case 't':
                         //pthread_mutex_lock(&exited_cpu_mutex);
                         tape_queue[TQ_Count] = exited_cpu[CPU_Walker];
+                        tape_queue[TQ_Count]->PRIORITY = 2;
 
                         if (CPU_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
                             CPU_Walker = 0;
@@ -865,7 +868,7 @@ void *Scheduler(void *arg){
                         }
                         //pthread_mutex_unlock(&exited_cpu_mutex);
 
-                        printf("> Process %d arrived at tape_queue[%d]\n", tape_queue[TQ_Count]->PID, TQ_Count);
+                        printf("> Process %d arrived at tape_queue[%d] with priority %d\n", tape_queue[TQ_Count]->PID, TQ_Count, tape_queue[TQ_Count]->PRIORITY);
                         printf("\n");
 
                         if (TQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
@@ -878,6 +881,7 @@ void *Scheduler(void *arg){
                     case 'p':
                         //pthread_mutex_lock(&exited_cpu_mutex);
                         printer_queue[PQ_Count] = exited_cpu[CPU_Walker];
+                        printer_queue[PQ_Count]->PRIORITY = 2;
 
                         if (CPU_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
                             CPU_Walker = 0;
@@ -885,7 +889,7 @@ void *Scheduler(void *arg){
                         }
                         //pthread_mutex_unlock(&exited_cpu_mutex);
 
-                        printf("> Process %d arrived at printer_queue[%d]\n", printer_queue[PQ_Count]->PID, PQ_Count);
+                        printf("> Process %d arrived at printer_queue[%d] with priority %d\n", printer_queue[PQ_Count]->PID, PQ_Count, printer_queue[PQ_Count]->PRIORITY);
                         printf("\n");
 
                         if (PQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
@@ -906,6 +910,7 @@ void *Scheduler(void *arg){
 
                 //pthread_mutex_lock(&exited_cpu_mutex);
                 low_queue[LQ_Count] = exited_cpu[CPU_Walker]; // <Ponteiro do PCB do processo na cpu>;     // Preempta o processo pra low priority.
+                low_queue[LQ_Count]->PRIORITY = 0;
 
                 if (CPU_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
                     CPU_Walker = 0;
@@ -914,7 +919,7 @@ void *Scheduler(void *arg){
 
                 //pthread_mutex_unlock(&exited_cpu_mutex);
 
-                printf("> Process %d arrived at low_queue[%d]\n", low_queue[LQ_Count]->PID, LQ_Count);
+                printf("> Process %d arrived at low_queue[%d] with priority %d\n", low_queue[LQ_Count]->PID, LQ_Count, low_queue[LQ_Count]->PRIORITY);
                 printf("\n");
 
                 if (LQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
@@ -948,6 +953,7 @@ void *Scheduler(void *arg){
                     case 'd':
                         //pthread_mutex_lock(&exited_cpu_mutex);
                         disc_queue[DQ_Count] = exited_cpu[CPU_Walker];
+                        disc_queue[DQ_Count]->PRIORITY = 1;
 
                         if (CPU_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
                             CPU_Walker = 0;
@@ -955,7 +961,7 @@ void *Scheduler(void *arg){
                         }
                         //pthread_mutex_unlock(&exited_cpu_mutex);
 
-                        printf("> Process %d arrived at disc_queue[%d]\n", disc_queue[DQ_Count]->PID, DQ_Count);
+                        printf("> Process %d arrived at disc_queue[%d] with priority %d\n", disc_queue[DQ_Count]->PID, DQ_Count, disc_queue[DQ_Count]->PRIORITY);
                         printf("\n");
 
                         if (DQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
@@ -968,6 +974,7 @@ void *Scheduler(void *arg){
                     case 't':
                         //pthread_mutex_lock(&exited_cpu_mutex);
                         tape_queue[TQ_Count] = exited_cpu[CPU_Walker];
+                        tape_queue[TQ_Count]->PRIORITY = 2;
 
                         if (CPU_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
                             CPU_Walker = 0;
@@ -975,7 +982,7 @@ void *Scheduler(void *arg){
                         }
                         //pthread_mutex_unlock(&exited_cpu_mutex);
 
-                        printf("> Process %d arrived at tape_queue[%d]\n", tape_queue[TQ_Count]->PID, TQ_Count);
+                        printf("> Process %d arrived at tape_queue[%d] with priority %d\n", tape_queue[TQ_Count]->PID, TQ_Count, tape_queue[TQ_Count]->PRIORITY);
                         printf("\n");
 
                         if (TQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
@@ -988,6 +995,7 @@ void *Scheduler(void *arg){
                     case 'p':
                         //pthread_mutex_lock(&exited_cpu_mutex);
                         printer_queue[PQ_Count] = exited_cpu[CPU_Walker];
+                        printer_queue[PQ_Count]->PRIORITY = 2;
 
                         if (CPU_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
                             CPU_Walker = 0;
@@ -995,7 +1003,7 @@ void *Scheduler(void *arg){
                         }
                         //pthread_mutex_unlock(&exited_cpu_mutex);
 
-                        printf("> Process %d arrived at printer_queue[%d]\n", printer_queue[PQ_Count]->PID, PQ_Count);
+                        printf("> Process %d arrived at printer_queue[%d] with priority %d\n", printer_queue[PQ_Count]->PID, PQ_Count, printer_queue[PQ_Count]->PRIORITY);
                         printf("\n");
 
                         if (PQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
@@ -1023,6 +1031,9 @@ void *Scheduler(void *arg){
             if (disc_queue[DQ_Walker]->STATUS == 0) {
                 low_queue[LQ_Count] = disc_queue[DQ_Walker];
 
+                printf("> Process %d arrived at low_queue[%d] with priority %d\n", low_queue[LQ_Count]->PID, LQ_Count, low_queue[LQ_Count]->PRIORITY);
+                printf("\n");
+
                 if (DQ_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
                     DQ_Walker = 0;
                     //Round_Robin = false;
@@ -1043,6 +1054,9 @@ void *Scheduler(void *arg){
 
             if (tape_queue[TQ_Walker]->STATUS == 0) {
                 high_queue[HQ_Count] = tape_queue[TQ_Walker];
+
+                printf("> Process %d arrived in high_queue[%d] with priority %d\n", high_queue[HQ_Count]->PID, HQ_Count, high_queue[HQ_Count]->PRIORITY);
+                printf("\n");
 
                 if (TQ_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
                     TQ_Walker = 0;
@@ -1065,6 +1079,9 @@ void *Scheduler(void *arg){
             if (printer_queue[PQ_Walker]->STATUS == 0) {
                 high_queue[HQ_Count] = printer_queue[PQ_Walker];
 
+                printf("> Process %d arrived in high_queue[%d] with priority %d\n", high_queue[HQ_Count]->PID, HQ_Count, high_queue[HQ_Count]->PRIORITY);
+                printf("\n");
+
                 if (PQ_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
                     PQ_Walker = 0;
                     //Round_Robin = false;
@@ -1079,10 +1096,6 @@ void *Scheduler(void *arg){
 
         //code
 
-        /*if (pthread_join(CPU_thread, NULL)) { // Talvez não seja necessário!!!
-            printf("--ERROR: pthread_join() \n");
-            exit(-1);
-        }*/
     }
 
     free(arg);
