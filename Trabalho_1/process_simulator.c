@@ -191,7 +191,7 @@ clock_t start_t, end_t;
 double total_t;
 struct timespec tim, tim2;
 //pthread_mutex_t exited_cpu_mutex;
-bool cpu_running = false, Round_Robin = false;
+bool cpu_running = false, disc_running = false, tape_running = false, printer_running = false, Round_Robin = false;
 
 
 /*
@@ -531,8 +531,8 @@ void *CPU(void *arg){
             p->STATUS = 3; // I/O request
             exited_cpu[CPU_Count] = p;
 
-            if (HQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
-                HQ_Count = 0;
+            if (CPU_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                CPU_Count = 0;
                 //Round_Robin == true;
             }
 
@@ -557,6 +557,7 @@ void *CPU(void *arg){
 }
 
 void *Disk_Handler(void *arg){
+    disc_running = true;
     PCB *p = (PCB *) arg;
     int aux = T_DISC;
 
@@ -569,12 +570,14 @@ void *Disk_Handler(void *arg){
     }
 
     p->STATUS = 0; // Not running
+    disc_running = false;
 
     free(arg);
     pthread_exit(NULL);
 }
 
 void *Tape_Handler(void *arg){
+    tape_running = true;
     PCB *p = (PCB *) arg;
     int aux = T_TAPE;
 
@@ -587,12 +590,14 @@ void *Tape_Handler(void *arg){
     }
 
     p->STATUS = 0; // Not running
+    tape_running = false;
 
     free(arg);
     pthread_exit(NULL);
 }
 
 void *Printer_Handler(void *arg){
+    printer_running = true;
     PCB *p = (PCB *) arg;
     int aux = T_PRINTER;
 
@@ -605,6 +610,7 @@ void *Printer_Handler(void *arg){
     }
 
     p->STATUS = 0; // Not running
+    printer_running = false;
 
     free(arg);
     pthread_exit(NULL);
@@ -711,7 +717,9 @@ void *Scheduler(void *arg){
 
     while (process_terminated < MAX_PROCESSES){
         if (processes_processed <= MAX_PROCESSES){ // If not all processes have been on the high_queue for the first time
-            while (HQ_Count > process_created - 1){} // Waits a new process be created
+            if (process_created < MAX_PROCESSES){
+                while (HQ_Count > process_created - 1){} // Waits a new process be created
+            }
 
             high_queue[HQ_Count] = process_list[processes_processed];
             processes_processed++;
@@ -724,62 +732,62 @@ void *Scheduler(void *arg){
 
             if (HQ_Count++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
                 HQ_Count = 0;
-                HQ_Round_Robin = true;
+                //HQ_Round_Robin = true;
             }
         }
 
         //if(!HQ_Round_Robin) {
-            if (HQ_Walker != HQ_Count && HQ_Walker < HQ_Count && high_queue[HQ_Walker]->STATUS == 0) { // Send a process to CPU
-                //aux = high_queue[HQ_Walker]->PID; // Maybe this is useless
-                //processes_processed++;
+        if (HQ_Walker != HQ_Count && HQ_Walker < HQ_Count && high_queue[HQ_Walker]->STATUS == 0) { // Send a process to CPU
+            //aux = high_queue[HQ_Walker]->PID; // Maybe this is useless
+            //processes_processed++;
 
-                if (first){
-                    first = false;
-                }
-
-                else {
-                    while (cpu_running) {} // Waits the process that is using to finish CPU
-                }
-
-                high_queue[HQ_Walker]->STATUS = 1; // Set status to running
-
-                if (pthread_create(&CPU_thread, NULL, CPU, (void *) high_queue[HQ_Walker])) { // Passes a process to CPU
-                    printf("--ERROR: pthread_create()\n");
-                    exit(-1);
-                }
-
-                if (HQ_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
-                    HQ_Walker = 0;
-                    //HQ_Round_Robin = false;
-                }
+            if (first){
+                first = false;
             }
+
+            else {
+                while (cpu_running) {} // Waits the process that is using to finish CPU
+            }
+
+            high_queue[HQ_Walker]->STATUS = 1; // Set status to running
+
+            if (pthread_create(&CPU_thread, NULL, CPU, (void *) high_queue[HQ_Walker])) { // Passes a process to CPU
+                printf("--ERROR: pthread_create()\n");
+                exit(-1);
+            }
+
+            if (HQ_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                HQ_Walker = 0;
+                //HQ_Round_Robin = false;
+            }
+        }
         //}
 
         //if (HQ_Round_Robin){
-            if (HQ_Walker != HQ_Count && HQ_Walker > HQ_Count && high_queue[HQ_Walker]->STATUS == 0) { // Send a process to CPU
-                //aux = high_queue[HQ_Walker]->PID; // Maybe this is useless
-                //processes_processed++;
+        if (HQ_Walker != HQ_Count && HQ_Walker > HQ_Count && high_queue[HQ_Walker]->STATUS == 0) { // Send a process to CPU
+            //aux = high_queue[HQ_Walker]->PID; // Maybe this is useless
+            //processes_processed++;
 
-                if (first){
-                    first = false;
-                }
-
-                else {
-                    while (cpu_running) {} // Waits the process that is using to finish CPU
-                }
-
-                high_queue[HQ_Walker]->STATUS = 1; // Set status to running
-
-                if (pthread_create(&CPU_thread, NULL, CPU, (void *) high_queue[HQ_Walker])) { // Passes a process to CPU
-                    printf("--ERROR: pthread_create()\n");
-                    exit(-1);
-                }
-
-                if (HQ_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
-                    HQ_Walker = 0;
-                    HQ_Round_Robin = false;
-                }
+            if (first){
+                first = false;
             }
+
+            else {
+                while (cpu_running) {} // Waits the process that is using to finish CPU
+            }
+
+            high_queue[HQ_Walker]->STATUS = 1; // Set status to running
+
+            if (pthread_create(&CPU_thread, NULL, CPU, (void *) high_queue[HQ_Walker])) { // Passes a process to CPU
+                printf("--ERROR: pthread_create()\n");
+                exit(-1);
+            }
+
+            if (HQ_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                HQ_Walker = 0;
+                HQ_Round_Robin = false;
+            }
+        }
         //}
 
         if(exited_cpu[CPU_Walker] != NULL/* && !Round_Robin*/) {
@@ -998,6 +1006,69 @@ void *Scheduler(void *arg){
                         break;
                 }
 
+            }
+        }
+
+        if (disc_queue[DQ_Walker] != NULL) {
+            if (disc_queue[DQ_Walker]->STATUS == 3) {
+                while (disc_running) {}
+
+                if (pthread_create(&Disk_Thread, NULL, Disk_Handler,
+                                   (void *) disc_queue[DQ_Walker])) { // Passes a process to CPU
+                    printf("--ERROR: pthread_create()\n");
+                    exit(-1);
+                }
+            }
+
+            if (disc_queue[DQ_Walker]->STATUS == 0) {
+                low_queue[LQ_Count] = disc_queue[DQ_Walker];
+
+                if (DQ_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                    DQ_Walker = 0;
+                    //Round_Robin = false;
+                }
+            }
+        }
+
+        if (tape_queue[TQ_Walker] !=NULL) {
+            if (tape_queue[TQ_Walker]->STATUS == 3) {
+                while (tape_running) {}
+
+                if (pthread_create(&Tape_Thread, NULL, Tape_Handler,
+                                   (void *) tape_queue[TQ_Walker])) { // Passes a process to CPU
+                    printf("--ERROR: pthread_create()\n");
+                    exit(-1);
+                }
+            }
+
+            if (tape_queue[TQ_Walker]->STATUS == 0) {
+                high_queue[HQ_Count] = tape_queue[TQ_Walker];
+
+                if (TQ_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                    TQ_Walker = 0;
+                    //Round_Robin = false;
+                }
+            }
+        }
+
+        if (printer_queue[PQ_Walker] != NULL){
+            if (printer_queue[PQ_Walker]->STATUS == 3) {
+                while (printer_running) {}
+
+                if (pthread_create(&Printer_Thread, NULL, Printer_Handler,
+                                   (void *) printer_queue[PQ_Walker])) { // Passes a process to CPU
+                    printf("--ERROR: pthread_create()\n");
+                    exit(-1);
+                }
+            }
+
+            if (printer_queue[PQ_Walker]->STATUS == 0) {
+                high_queue[HQ_Count] = printer_queue[PQ_Walker];
+
+                if (PQ_Walker++ > MAX_PROCESSES) { // Acrescenta de +1. Se tiver passado, faz a volta.
+                    PQ_Walker = 0;
+                    //Round_Robin = false;
+                }
             }
         }
 
