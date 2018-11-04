@@ -1,0 +1,1 @@
+/usr/bin/cc -g   CMakeFiles/Trabalho_2.dir/exemplos_de_uso.c.o CMakeFiles/Trabalho_2.dir/prog1.c.o CMakeFiles/Trabalho_2.dir/prog2.c.o  -o Trabalho_2 

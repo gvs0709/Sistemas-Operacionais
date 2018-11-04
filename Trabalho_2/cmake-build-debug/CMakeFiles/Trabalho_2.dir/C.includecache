@@ -1,0 +1,20 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/gabriel/Documents/UFRJ/Sistemas-Operacionais/Trabalho_2/exemplos_de_uso.c
+stdio.h
+-
+stdlib.h
+-
+unistd.h
+-
+
+/home/gabriel/Documents/UFRJ/Sistemas-Operacionais/Trabalho_2/prog1.c
+
+/home/gabriel/Documents/UFRJ/Sistemas-Operacionais/Trabalho_2/prog2.c
+
