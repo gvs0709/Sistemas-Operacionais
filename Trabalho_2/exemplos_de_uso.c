@@ -14,7 +14,7 @@ int main(int argc, char const *argv[]){
 
         switch(abs(example)){
             case 1:
-                ret1 = fork();
+                ret1 = fork(); // Find a way to stop an infinit loop on the child
                 ret2 = fork();
 
                 printf("Programa em execução.\n");
