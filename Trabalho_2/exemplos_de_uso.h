@@ -52,7 +52,8 @@ int exemplos(){
 
                 if (ret1 == 0){
                     printf("\n");
-                    execl("/bin/ll", "ll", (char *)0);
+                    //execl("/bin/ll", "ll", (char *)0);
+                    execl("/bin/ls", "ls -lh", (char *)0);
                     printf("--Por que este comando foi executado?\n");
                 }
 
