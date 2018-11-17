@@ -5,7 +5,7 @@
 #include "prog2.h"
 
 int main(int argc, char const *argv[]){
-    int func, myPID = getpid();
+    int func/*, myPID = getpid()*/;
     char again;
 
     printf("********************************************************\n");
@@ -16,41 +16,44 @@ int main(int argc, char const *argv[]){
     printf("\n");
 
     while(1){
-        printf("Which function to execute (1~3)? [1. ex; 2. p1; 3. p2] >> ");
+        printf("Qual função executar (0~2)? [0. exemplos; 1. prog1; 2. prog2] >> ");
         scanf("%d", &func);
         printf("\n");
 
         switch(func){
-            case 1:
+            case 0:
                 exemplos();
+                printf("\n");
+                break;
+
+            case 1:
+                prog1();
+                printf("\n");
                 break;
 
             case 2:
-                prog1();
-                break;
-
-            case 3:
                 prog2();
+                printf("\n");
                 break;
 
             default:
-                printf("Input was not one of the options");
+                printf("Entrada não era uma das opções\n");
                 printf("\n");
         }
 
-        if(myPID == getpid()) {
-            printf("Execute another function? [Y/n] >> ");
-            scanf("%s", &again);
-            printf("\n");
+        //if(myPID == getpid()) {
+        printf("Executar outra função? [S/n] >> ");
+        scanf("%s", &again);
+        printf("\n");
 
-            if (again == 'n' || again == 'N') {
-                break;
-            }
+        if (again == 'n' || again == 'N') {
+            break;
         }
+        /*}
 
         else{
             break;
-        }
+        }*/
     }
 
     return 0;

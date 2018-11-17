@@ -5,7 +5,7 @@ int exemplos(){
     char again;
 
     while(1){
-        printf("Which example to execute? (number from 1 to 4) >> ");
+        printf("Qual exemplo executar? (número de 1 a 4) >> ");
         scanf("%d", &example);
         printf("\n");
 
@@ -66,12 +66,11 @@ int exemplos(){
 
             default:
                 printf("\n");
-                printf("--> Input was not a number between 1 and 4\n");
+                printf("--> Entrada não era um número de 1 a 4\n");
         }
 
         if(ret2 > 0 && (ret1 - getpid()) > 0) {
-            printf("Execute another example? [Y/n] >> ");
-            //printf(">> ");
+            printf("Executar outro exemplo? [S/n] >> ");
             scanf("%s", &again);
             printf("\n");
 
@@ -81,7 +80,8 @@ int exemplos(){
         }
 
         else{
-            break;
+            exit(0);
+            //break;
         }
 
     }
