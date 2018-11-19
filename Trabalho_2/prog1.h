@@ -26,9 +26,9 @@ int prog1(){
 
         //Mostre na tela o texto da mensagem enviada
         printf("[PAI] Menssagem enviada: '%s'\n", string);
+        //close(pf[1]);
 
         //Aguarde a resposta do processo filho
-        //wait(&status);
         close(fp[1]); // Parent process closes up output side of pipe fp
 
         nbytes = read(fp[0], readbuffer, sizeof(readbuffer)); //Read "readbuffer" through the input side of pipe fp
@@ -45,7 +45,7 @@ int prog1(){
 
         //Aguarde o término do processo filho
         printf("[PAI] Esperando processo filho terminar...\n");
-        wait(&status);
+        //wait(&status);
 
         //Informe na tela que o filho terminou e que o processo pai também vai encerrar
         printf("[PAI] Processo filho terminou, encerrando...\n");
@@ -57,9 +57,11 @@ int prog1(){
 
         //Aguarde a mensagem do processo pai e ao receber mostre o texto na tela
         close(pf[1]); // Child process closes up output side of pipe pf
+
         nbytes = read(pf[0], readbuffer, sizeof(readbuffer)); //Read "readbuffer" through the input side of pipe pf
 
         printf("[FILHO] Menssagem recebida: '%s'\n", readbuffer);
+        //close(pf[0]);
 
         //Envie uma mensagem resposta ao pai
         string = "Naaaaaaooooo!!!";
@@ -69,13 +71,15 @@ int prog1(){
         //printf("[FILHO] Resposta enviada: '%s'\n", string);
 
         //Execute o comando “for” abaixo
+        printf("[FILHO] entrando no for");
+
         for (j = 0; j <= 10000; j++){}
 
         // Envie mensagem ao processo pai com o valor final de “j”
-        string = (char *) j;
+        sprintf(string, "%d", j);
 
         write(fp[1], string, (strlen(string)+1)); // Send "string" through the output side of pipe fp
-        //printf("[FILHO] Valor de j: '%s'\n", string);
+        printf("[FILHO] Valor de j: '%s'\n", string);
 
         //Execute o comando abaixo e responda às perguntas
         //execl("/bin/ls", "ls", NULL);
