@@ -7,4 +7,5 @@ add_executable(Trabalho_2
         exemplos_de_uso.h
         prog1.h
         prog2.h
+        prog2v2.h
         main.c)
