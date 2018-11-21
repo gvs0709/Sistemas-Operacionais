@@ -21,7 +21,7 @@ int main(int argc, char const *argv[]){
         scanf("%d", &func);
         printf("\n");
 
-        switch(func){
+        switch(abs(func)){
             case 0:
                 exemplos();
                 printf("\n");

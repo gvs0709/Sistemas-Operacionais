@@ -3,15 +3,21 @@
 #include <string.h> // To use strlen
 #include <errno.h>
 
+enum{
+    COMMAND_SIZE = 100, TK_SIZE = 50, PATH_SIZE = TK_SIZE + 10
+};
+
 int prog2(){
     //Início
-    int child, status;
-    char com[100], base_path[60], *token, tk[50];
+    int child, status, first = 1;
+    char com[COMMAND_SIZE], base_path[PATH_SIZE], *token, tk[TK_SIZE];
 
     //Lê linha de comando;
     printf("$: ");
-    scanf("%s", com);
-    //printf("\n");
+
+    do{
+        fgets(com, sizeof(com), stdin);
+    } while(com[0] == '\n');
 
     token = strtok(com, " ");
 
@@ -20,14 +26,23 @@ int prog2(){
         //Início
         //Percorre a linha retirando o nome do comando;
         strcpy(base_path, "/bin/");
-        strcpy(tk, token);
+
+        if(first){
+            strcpy(tk, token);
+            first = 0;
+        }
+
+        else{
+            strncpy(tk, token, strlen(token)-1);
+        }
+
         strcat(base_path, tk);
 
         //Executa um fork para criar um novo processo;
         child = fork();
 
         if(child < 0){
-            fprintf(stderr, "-- Fork Failed" );
+            fprintf(stderr, "-- Fork Failed\n");
             return 1;
         }
 
@@ -47,7 +62,7 @@ int prog2(){
             //Se codigo retorno = zero então
             if(errno == 0){
                 //Escreva "Executado com sucesso."
-                printf("\n");
+                //printf("\n");
                 printf("-- Executado com sucesso.");
                 printf("\n");
             }
@@ -64,6 +79,15 @@ int prog2(){
 
         //Lê linha de comando
         token = strtok(NULL, " ");
+
+        /*if(token[0] != '&'){
+            printf("-- Uso errado da linha de comando" );
+            break;
+        }
+
+        if(token[0] == '&'){
+            token = strtok(NULL, " ");
+        }*/
         //Fim;
     }
     //Fim;

@@ -6,6 +6,7 @@ int prog1(){
     int status, id, j, pf[2], fp[2], aux; // pf é um pipe onde o pai escreve e o filho le, fp é um pipe onde o filho escreve e o pai le
     //ssize_t nbytes;
     char *string, readbuffer[80];
+    char js[30];
 
     // Insira um comando para pegar o PID do processo corrente e mostre na tela da console.
     id = getpid();
@@ -40,8 +41,8 @@ int prog1(){
         write(pf[1], string, (strlen(string)+1)); // Send "string" through the output side of pipe pf
 
         //Mostre na tela o texto da mensagem enviada
-        printf("[PAI] Menssagem enviada: '%s'\n", string);
-        //close(pf[1]);
+        printf("[PAI] Mensagem enviada: '%s'\n", string);
+        close(pf[1]);
 
         //Aguarde a resposta do processo filho
         wait(&status);
@@ -50,14 +51,14 @@ int prog1(){
         read(fp[0], readbuffer, sizeof(readbuffer)); //Read "readbuffer" through the input side of pipe fp
 
         //Mostre na tela o texto recebido do processo filho
-        printf("[PAI] Menssagem recebida 1: '%s'\n", readbuffer);
+        printf("[PAI] Mensagem recebida 1: '%s'\n", readbuffer);
 
         //Aguarde mensagem do filho e mostre o texto recebido
         wait(&status);
 
         read(fp[0], readbuffer, sizeof(readbuffer)); //Read "readbuffer" through the input side of pipe fp
 
-        printf("[PAI] Menssagem recebida 2: '%s'\n", readbuffer);
+        printf("[PAI] Mensagem recebida 2: '%s'\n", readbuffer);
 
         //Aguarde o término do processo filho
         printf("[PAI] Esperando processo filho terminar...\n");
@@ -76,23 +77,23 @@ int prog1(){
 
         read(pf[0], readbuffer, sizeof(readbuffer)); //Read "readbuffer" through the input side of pipe pf
 
-        printf("[FILHO] Menssagem recebida: '%s'\n", readbuffer);
-        //close(pf[0]);
+        printf("[FILHO] Mensagem recebida: '%s'\n", readbuffer);
+        close(pf[0]);
 
         //Envie uma mensagem resposta ao pai
         string = "Naaaaaaooooo!!!";
 
         close(fp[0]);  // Child process closes up input side of pipe fp
         write(fp[1], string, (strlen(string)+1)); // Send "string" through the output side of pipe fp
-        printf("[FILHO] Resposta enviada: '%s'\n", string);
+        //printf("[FILHO] Resposta enviada: '%s'\n", string);
 
         //Execute o comando “for” abaixo
-        printf("[FILHO] entrando no for");
 
         for(j = 0; j <= 10000; j++){}
-
+    
         // Envie mensagem ao processo pai com o valor final de “j”
-        sprintf(string, "%d", j);
+        sprintf(js, "%d", j);
+        string = js;
 
         write(fp[1], string, (strlen(string)+1)); // Send "string" through the output side of pipe fp
         printf("[FILHO] Valor de j: '%s'\n", string);
