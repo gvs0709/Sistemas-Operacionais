@@ -1,12 +1,17 @@
 #include <unistd.h> // To use fork and pipe
 #include <wait.h>
 #include <string.h> // To use strlen
+#include <signal.h>
+
+void handler (int signal) {
+    return;
+}
 
 int prog1(){
-    int status, id, j, pf[2], fp[2], aux; // pf é um pipe onde o pai escreve e o filho le, fp é um pipe onde o filho escreve e o pai le
-    //ssize_t nbytes;
+    int status, id, j, pf[2], fp[2], childPID; // pf é um pipe onde o pai escreve e o filho le, fp é um pipe onde o filho escreve e o pai le
     char *string, readbuffer[80];
-    char js[30];
+    char js[10];
+    signal(SIGUSR1, handler);
 
     // Insira um comando para pegar o PID do processo corrente e mostre na tela da console.
     id = getpid();
@@ -23,16 +28,16 @@ int prog1(){
         return 1;
     }
 
-    aux = fork(); /* insira um comando para criar um subprocesso*/
+    childPID = fork(); /* insira um comando para criar um subprocesso*/
 
-    if(aux < 0){
+    if(childPID < 0){
         fprintf(stderr, "fork Failed" );
         return 1;
     }
 
-    if(aux > 0){ // Faça com que o processo pai execute este trecho de código
+    if(childPID > 0){ // Faça com que o processo pai execute este trecho de código
         //Mostre na console o PID do processo pai e do processo filho
-        printf("[PAI] PID do pai: %d, PID do filho: %d\n", id, aux);
+        printf("[PAI] PID do pai: %d, PID do filho: %d\n", id, childPID);
 
         //Monte uma mensagem e a envie para o processo filho
         string = "Eu sou seu pai!";
@@ -45,7 +50,7 @@ int prog1(){
         close(pf[1]);
 
         //Aguarde a resposta do processo filho
-        wait(&status);
+        pause();
         close(fp[1]); // Parent process closes up output side of pipe fp
 
         read(fp[0], readbuffer, sizeof(readbuffer)); //Read "readbuffer" through the input side of pipe fp
@@ -54,15 +59,16 @@ int prog1(){
         printf("[PAI] Mensagem recebida 1: '%s'\n", readbuffer);
 
         //Aguarde mensagem do filho e mostre o texto recebido
-        wait(&status);
+        pause();
 
         read(fp[0], readbuffer, sizeof(readbuffer)); //Read "readbuffer" through the input side of pipe fp
 
-        printf("[PAI] Mensagem recebida 2: '%s'\n", readbuffer);
+        printf("[PAI] Mensagem recebida 2: 'j = %s'\n", readbuffer);
 
         //Aguarde o término do processo filho
         printf("[PAI] Esperando processo filho terminar...\n");
         wait(&status);
+        close(fp[0]);
 
         //Informe na tela que o filho terminou e que o processo pai também vai encerrar
         printf("[PAI] Processo filho terminou, encerrando...\n");
@@ -86,6 +92,8 @@ int prog1(){
         close(fp[0]);  // Child process closes up input side of pipe fp
         write(fp[1], string, (strlen(string)+1)); // Send "string" through the output side of pipe fp
         //printf("[FILHO] Resposta enviada: '%s'\n", string);
+        sleep(1);
+        kill(id, SIGUSR1);
 
         //Execute o comando “for” abaixo
 
@@ -96,10 +104,13 @@ int prog1(){
         string = js;
 
         write(fp[1], string, (strlen(string)+1)); // Send "string" through the output side of pipe fp
-        printf("[FILHO] Valor de j: '%s'\n", string);
+        printf("[FILHO] Valor de j: %s\n", string);
+        sleep(1);
+        kill(id, SIGUSR1);
+        close(fp[1]);
 
         //Execute o comando abaixo e responda às perguntas
-        //execl("/bin/ls", "ls", NULL);
+        execl("/bin/ls", "ls", NULL);
 
         // O que acontece após este comando?
         //O que pode acontecer se o comando “execl” falhar?
