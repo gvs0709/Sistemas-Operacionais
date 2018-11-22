@@ -3,10 +3,10 @@
 #include <string.h> // To use strlen
 #include <errno.h>
 
-int prog2v2(){ // Em progresso!!! Ainda igual a prog2
+int prog2v2(){
     //Início
-    int child, status, sys_call, i = 0;
-    char com[COMMAND_BUFFER_SIZE], base_path[PATH_SIZE], *token, tk[TK_SIZE], find_command[6], **argv = malloc(8 * sizeof(char *));
+    int child, status, i, argc = 0;
+    char com[COMMAND_BUFFER_SIZE], base_path[PATH_SIZE], *token, **argv = malloc(5 * sizeof(char *));
 
     while(1) {
         //Lê linha de comando;
@@ -21,6 +21,7 @@ int prog2v2(){ // Em progresso!!! Ainda igual a prog2
         }
 
         token = strtok(com, " ");
+        i = 0;
 
         while (token != NULL) {
             argv[i] = token;
@@ -29,6 +30,7 @@ int prog2v2(){ // Em progresso!!! Ainda igual a prog2
             token = strtok(NULL, " ");
         }
 
+        argc = i;
         argv[i] = NULL;
 
         if (strcmp(argv[0], "exit") == 0){
@@ -45,7 +47,31 @@ int prog2v2(){ // Em progresso!!! Ainda igual a prog2
 
         if (child == 0) {  //Se processo filho então
             //Executa execl especificando o nome do comando como parâmetro;
-            execvp(argv[0], argv);
+            strcpy(base_path, "/bin/");
+            strcat(base_path, argv[0]);
+
+            switch (argc) {
+                case 1:
+                    execl(base_path, argv[0], 0);
+                    break;
+
+                case 2:
+                    execl(base_path, argv[0], argv[1], 0);
+                    break;
+
+                case 3:
+                    execl(base_path, argv[0], argv[1], argv[2], 0);
+                    break;
+
+                case 4:
+                    execl(base_path, argv[0], argv[1], argv[2], argv[3], 0);
+                    break;
+
+                case 5:
+                    execl(base_path, argv[0], argv[1], argv[2], argv[3], argv[4], 0);
+                    break;
+            }
+
             exit(errno);
         }
 
