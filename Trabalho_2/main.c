@@ -49,7 +49,7 @@ int main(int argc, char const *argv[]){
 
         //if(myPID == getpid()) {
         printf("Executar outra função? [S/n] >> ");
-        scanf("%s", &again);
+        scanf("%c", &again);
         printf("\n");
 
         if (again == 'n' || again == 'N') {
