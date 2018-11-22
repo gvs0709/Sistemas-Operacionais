@@ -32,20 +32,11 @@ int prog2(){
         strcpy(base_path, "/bin/");
         strcpy(tk, token);
 
-        /*if(first){
-            strcpy(tk, token);
-            first = 0;
-        }
-
-        else{
-            strncpy(tk, token, strlen(token)-1);
-        }*/
-
         token = strtok(NULL, " "); //Lê linha de comando
 
         if (token != NULL) {
             if (token[0] != '&') {
-                printf("-- Para executar 2 comandos seguidos é necessário '&'");
+                printf("-- Uso comando & comando");
                 printf("\n");
                 break;
             }
