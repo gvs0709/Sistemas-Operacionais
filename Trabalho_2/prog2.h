@@ -9,7 +9,7 @@ enum{
 
 int prog2(){
     //Início
-    int child, status, sys_call;
+    int child, status, sys_call, leave = 0;
     char com[COMMAND_BUFFER_SIZE], base_path[PATH_SIZE], *token, tk[TK_SIZE], find_command[6];
 
     while(1) {
@@ -24,16 +24,22 @@ int prog2(){
             com[strlen(com) - 1] = '\0';
         }
 
-        if(com[0] == 'e' && com[1] == 'x' && com[2] == 'i' && com[3] == 't' && com[4] == '\0'){
+        /*if(com[0] == 'e' && com[1] == 'x' && com[2] == 'i' && com[3] == 't' && com[4] == '\0'){
             printf("-- Saindo do terminal...\n");
             break;
-        }
+        }*/
 
         token = strtok(com, " ");
 
         //Enquanto não fim faça
         while (token != NULL) {
             //Início
+            if (strcmp(token, "exit") == 0){
+                printf("-- Saindo do terminal...\n");
+                leave = 1;
+                break;
+            }
+
             //Percorre a linha retirando o nome do comando;
             strcpy(base_path, "/bin/");
             strcpy(tk, token);
@@ -119,6 +125,10 @@ int prog2(){
             //Fim;
         }
         //Fim;
+
+        if(leave){
+            break;
+        }
     }
     
     return 0;
