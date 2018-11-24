@@ -48,7 +48,7 @@ int prog2(){
 
             if (token != NULL) {
                 if (token[0] != '&') {
-                    fprintf(stderr, "-- Uso comando & comando");
+                    fprintf(stderr, "-- Uso: comando & comando");
                     printf("\n");
                     break;
                 }

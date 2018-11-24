@@ -70,6 +70,10 @@ int prog2v2(){
                 case 5:
                     execl(base_path, argv[0], argv[1], argv[2], argv[3], argv[4], 0);
                     break;
+
+                default:
+                    fprintf(stderr, "-- Foi passada uma quantidade não suportada de argumentos\n");
+                    printf("\n");
             }
 
             exit(errno);
