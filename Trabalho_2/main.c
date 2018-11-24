@@ -6,8 +6,8 @@
 #include "prog2v2.h"
 
 int main(int argc, char const *argv[]){
-    int func/*, myPID = getpid()*/;
-    char again;
+    char func, again;
+    int c;
 
     printf("********************************************************\n");
     printf("\n");
@@ -18,26 +18,32 @@ int main(int argc, char const *argv[]){
 
     while(1){
         printf("Qual função executar (0~3)? [0. exemplos; 1. prog1; 2. prog2; 3. prog2 args] >> ");
-        scanf("%d", &func);
+        scanf("%c", &func);
         printf("\n");
 
-        switch(abs(func)){
-            case 0:
+        while((c = getchar()) != EOF) {
+            if (c == '\n') {
+                break;
+            }
+        }
+
+        switch(func){
+            case '0':
                 exemplos();
                 printf("\n");
                 break;
 
-            case 1:
+            case '1':
                 prog1();
                 printf("\n");
                 break;
 
-            case 2:
+            case '2':
                 prog2();
                 printf("\n");
                 break;
 
-            case 3:
+            case '3':
                 prog2v2();
                 printf("\n");
                 break;
@@ -47,19 +53,19 @@ int main(int argc, char const *argv[]){
                 printf("\n");
         }
 
-        //if(myPID == getpid()) {
         printf("Executar outra função? [S/n] >> ");
         scanf("%c", &again);
         printf("\n");
 
+        while((c = getchar()) != EOF) {
+            if (c == '\n') {
+                break;
+            }
+        }
+
         if (again == 'n' || again == 'N') {
             break;
         }
-        /*}
-
-        else{
-            break;
-        }*/
     }
 
     return 0;

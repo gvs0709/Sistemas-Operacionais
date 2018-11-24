@@ -1,16 +1,22 @@
 #include <unistd.h> // To use fork
 
 int exemplos(){
-    int ret1, ret2, example;
-    char again;
+    int ret1 = 1 + getpid(), ret2 = 1, c;
+    char example, again;
 
     while(1){
         printf("Qual exemplo executar? (número de 1 a 4) >> ");
-        scanf("%d", &example);
+        scanf("%c", &example);
         printf("\n");
 
-        switch(abs(example)){
-            case 1:
+        while((c = getchar()) != EOF) {
+            if (c == '\n') {
+                break;
+            }
+        }
+
+        switch(example){
+            case '1':
                 ret1 = fork();
                 ret2 = fork();
 
@@ -18,7 +24,7 @@ int exemplos(){
                 printf("--Programa em execução.\n");
                 break;
 
-            case 2:
+            case '2':
                 ret1 = fork();
 
                 if (ret1 == 0){
@@ -33,7 +39,7 @@ int exemplos(){
 
                 break;
 
-            case 3:
+            case '3':
                 ret1 = fork();
 
                 if (ret1 == 0){
@@ -47,7 +53,7 @@ int exemplos(){
                 printf("--Por que a função printf anterior não foi executada?\n");
                 break;
 
-            case 4:
+            case '4':
                 ret1 = fork();
 
                 if (ret1 == 0){
@@ -71,8 +77,14 @@ int exemplos(){
 
         if(ret2 > 0 && (ret1 - getpid()) > 0) {
             printf("Executar outro exemplo? [S/n] >> ");
-            scanf("%s", &again);
+            scanf("%c", &again);
             printf("\n");
+
+            while((c = getchar()) != EOF) {
+                if (c == '\n') {
+                    break;
+                }
+            }
 
             if (again == 'n' || again == 'N') {
                 break;
@@ -81,7 +93,6 @@ int exemplos(){
 
         else{
             exit(0);
-            //break;
         }
 
     }
