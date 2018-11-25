@@ -47,6 +47,8 @@ int prog1(){
 
         //Mostre na tela o texto da mensagem enviada
         printf("[PAI] Mensagem enviada: '%s'\n", string);
+        sleep(1);
+        kill(childPID, SIGUSR1);
         close(pf[1]);
 
         //Aguarde a resposta do processo filho
@@ -79,6 +81,7 @@ int prog1(){
         printf("[FILHO] PID do processo corrente: %d, PID do pai: %d\n", getpid(), id);
 
         //Aguarde a mensagem do processo pai e ao receber mostre o texto na tela
+        pause();
         close(pf[1]); // Child process closes up output side of pipe pf
 
         read(pf[0], readbuffer, sizeof(readbuffer)); //Read "readbuffer" through the input side of pipe pf
