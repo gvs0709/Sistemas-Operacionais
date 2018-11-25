@@ -8,7 +8,7 @@ void handler (int signal) {
 }
 
 int prog1(){
-    int status, id, j, pf[2], fp[2], childPID; // pf é um pipe onde o pai escreve e o filho le, fp é um pipe onde o filho escreve e o pai le
+    int status = 0, id, j, pf[2], fp[2], childPID; // pf é um pipe onde o pai escreve e o filho le, fp é um pipe onde o filho escreve e o pai le
     char *string, readbuffer[80];
     char js[10];
     signal(SIGUSR1, handler);
@@ -69,7 +69,8 @@ int prog1(){
 
         //Aguarde o término do processo filho
         printf("[PAI] Esperando processo filho terminar...\n");
-        wait(&status);
+        //wait(&status);
+        waitpid(childPID, &status, WUNTRACED);
         close(fp[0]);
 
         //Informe na tela que o filho terminou e que o processo pai também vai encerrar
