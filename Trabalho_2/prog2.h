@@ -9,8 +9,10 @@ enum{
 
 int prog2(){
     //Início
-    int child, status, sys_call, leave = 0;
+    int child, status = 0, sys_call, leave = 0;
     char com[COMMAND_BUFFER_SIZE], base_path[PATH_SIZE], *token, tk[TK_SIZE], find_command[6];
+
+    errno = 0;
 
     while(1) {
         //Lê linha de comando;
@@ -53,7 +55,7 @@ int prog2(){
                     break;
                 }
 
-                if (token[0] == '&') { // Ignora o &
+                if (token[0] == '&') { // Ignora o '&'
                     token = strtok(NULL, " ");
                 }
             }
@@ -89,7 +91,9 @@ int prog2(){
             else {
                 //Inicio
                 //Executa wait para esperar que a execução do comando termine;
-                wait(&status);
+                //wait(&status);
+                waitpid(child, &status, WUNTRACED);
+                status = 0;
 
                 //Se codigo retorno = zero então
                 if (errno == 0) {
@@ -102,26 +106,13 @@ int prog2(){
                 //Senão
                 else {
                     //Escreva "Código de retorno = ", codigo_retorno;
-                    printf("-- Código de retorno = %d", errno);
+                    fprintf(stderr, "-- Código de retorno = %d\n", errno);
                     printf("\n");
+                    errno = 0;
                     //Fim
                 }
                 //Fim se;
             }
-
-            //Lê linha de comando
-            /*token = strtok(NULL, " ");
-
-            if (token != NULL) {
-                if (token[0] != '&') {
-                    printf("-- Para executar 2 comandos seguidos é necessário '&'");
-                    break;
-                }
-
-                if(token[0] == '&'){ // Ignora o &
-                    token = strtok(NULL, " ");
-                }
-            }*/
             //Fim;
         }
         //Fim;

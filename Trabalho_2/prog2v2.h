@@ -5,8 +5,10 @@
 
 int prog2v2(){
     //Início
-    int child, status, i, argc = 0;
+    int child, status = 0, i, argc = 0;
     char com[COMMAND_BUFFER_SIZE], base_path[PATH_SIZE], *token, **argv = malloc(5 * sizeof(char *));
+
+    errno = 0;
 
     while(1) {
         //Lê linha de comando;
@@ -82,7 +84,9 @@ int prog2v2(){
         else {
             //Inicio
             //Executa wait para esperar que a execução do comando termine;
-            wait(&status);
+            //wait(&status);
+            waitpid(child, &status, WUNTRACED);
+            status = 0;
 
             //Se codigo retorno = zero então
             if (errno == 0) {
@@ -95,8 +99,9 @@ int prog2v2(){
                 //Senão
             else {
                 //Escreva "Código de retorno = ", codigo_retorno;
-                printf("-- Código de retorno = %d", errno);
+                fprintf(stderr, "-- Código de retorno = %d", errno);
                 printf("\n");
+                errno = 0;
                 //Fim
             }
             //Fim se;
