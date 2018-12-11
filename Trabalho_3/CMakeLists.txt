@@ -5,3 +5,5 @@ set(CMAKE_C_STANDARD 11)
 
 add_executable(Trabalho_3
         memory_management_simulator.c)
+
+target_link_libraries(Trabalho_3 PUBLIC -lsodium -lpthread)

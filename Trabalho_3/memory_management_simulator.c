@@ -17,8 +17,15 @@ enum{
     WORKING_SET_LIMIT = 4 // Maximum number of pages a process can have in main memory
 };
 
+typedef struct Page {
+    unsigned int num;
+    struct Page *next;
+}PAGE;
+
 typedef struct process_pcb{
-    int PID, /*PPID, PRIORITY, STATUS, P_TIME, E_TIME, IOITERATOR, IOTIME[MAX_VIRTUAL_PAGES], AUX, OLD_ITERATOR, */VIRTUAL_PAGES, PAGE_NUMBER[MAX_VIRTUAL_PAGES], SIZE;
+    int PID, VIRTUAL_PAGES, PAGE_NUMBER[MAX_VIRTUAL_PAGES], SIZE, pages_in_mem;
+    bool firstPage;
+    PAGE *first, *last; // Linked list of process pages
     //char IOLIST[MAX_VIRTUAL_PAGES];
     //bool PENDINGIO;
 }PCB;
@@ -43,21 +50,38 @@ PCB *bootstrapper, *process_list[MAX_PROCESSES];
 MEMORY *mainMemory;
 SWAP *swapMemory;
 
+void AddNewPage(unsigned int value, PCB *process){
+    PAGE *current = (PAGE*)malloc(sizeof(PAGE));
+    current->num = value;
+    current->next = NULL;
+
+    if(process->firstPage == true){
+        process->first = current;
+        process->last = process->first;
+        process->firstPage = false;
+    }
+
+    else {
+        process->last->next = current;
+        process->last = current;
+    }
+
+    /*if(process->firstPage < process->VIRTUAL_PAGES) {
+        process->firstPage++;
+    }*/
+}
+
 PCB *Assemble_PCB(int pid){
     //int aux = randombytes_uniform(MAX_IOREQUESTS+1); // Decides how many I/O requests will be made randomly, varies from 0 to MAX_IOREQUESTS - 1
-    int aux;
+    unsigned int aux;
+    PAGE *dummie;
 
     bootstrapper = malloc(sizeof(PCB));
     bootstrapper->PID = pid;
-    /*bootstrapper->PPID = ppid;
-    bootstrapper->PRIORITY = priority;
-    bootstrapper->STATUS = status;
-    bootstrapper->P_TIME = p_time;
-    bootstrapper->IOITERATOR = iterator;
-    bootstrapper->OLD_ITERATOR = iterator - 1; // Initialize OLD_ITERATOR as -1
-    bootstrapper->AUX = aux; // Stores the number of I/O requests*/
     bootstrapper->VIRTUAL_PAGES = randombytes_uniform(MAX_VIRTUAL_PAGES) + 1; // Decides how many virtual pages the process will have. Varies from 1 to MAX_VIRTUAL_PAGES
     bootstrapper->SIZE = bootstrapper->VIRTUAL_PAGES * PAGE_SIZE;
+    bootstrapper->firstPage = true;
+    bootstrapper->pages_in_mem = 0;
 
     for(int j = 0; j < MAX_VIRTUAL_PAGES; j++){
         bootstrapper->PAGE_NUMBER[j] = 0;
@@ -65,10 +89,10 @@ PCB *Assemble_PCB(int pid){
 
     for (int i = 0; i < bootstrapper->VIRTUAL_PAGES; i++) {
         aux = randombytes_uniform(MAX_VIRTUAL_PAGES);
-        //bootstrapper->PAGE_NUMBER[i] = 1; //randombytes_uniform((const uint32_t) bootstrapper->P_TIME - 1) + 1; // Ranges from 1 to P_TIME-1
 
         if (bootstrapper->PAGE_NUMBER[aux] == 0){
             bootstrapper->PAGE_NUMBER[aux] = 1; // Creates a page with id aux, that ranges from 0 to 63
+            AddNewPage(aux, bootstrapper);
         }
 
         else{
@@ -77,6 +101,7 @@ PCB *Assemble_PCB(int pid){
             }
 
             bootstrapper->PAGE_NUMBER[aux] = 1;
+            AddNewPage(aux, bootstrapper);
         }
 
         /*switch (select_IO[randombytes_uniform(IO_TYPE)]){
@@ -113,9 +138,34 @@ PCB *Assemble_PCB(int pid){
         printf("IOLIST[%d]: %c |\n", i, bootstrapper->IOLIST[i]);*/
     }
 
-    /*printf("\n");
+    printf("Process PAGE_NUMBERS: | %d", bootstrapper->first->num);
 
-    if (aux == 0){
+    if(bootstrapper->first->next == NULL){
+        printf(" |\n");
+        printf("\n");
+    }
+
+    else{
+        printf(", ");
+    }
+
+    dummie = bootstrapper->first;
+
+    while(dummie->next != NULL){
+        dummie = dummie->next;
+
+        if(dummie->next != NULL) {
+            printf("%d, ", dummie->num);
+        }
+
+        else{
+            printf("%d |\n", dummie->num);
+        }
+    }
+
+    printf("\n");
+
+    /*if (aux == 0){
         bootstrapper->PENDINGIO = false;
         bootstrapper->IOITERATOR = -1;
 
@@ -141,16 +191,13 @@ PCB *Assemble_PCB(int pid){
 
         printf("| IOITERATOR = %d |\n", bootstrapper->IOITERATOR);
         printf("\n");
-    }
-
-    // How to initialize E_TIME?*/
+    }*/
 
     return bootstrapper;
 }
 
 unsigned int create_frame(MEMORY *caller, FRAME **leaf){
-    unsigned int FRAME_ID = caller->NFRAMES + 1, SIZE = caller->SIZE;
-    //void *SIZE = caller->SIZE;
+    unsigned int FRAME_ID = caller->NFRAMES + 1, SIZE = caller->FREE_SPACE;
 
     if(*leaf == NULL){
         *leaf = (FRAME*) malloc(sizeof(FRAME));
@@ -164,10 +211,12 @@ unsigned int create_frame(MEMORY *caller, FRAME **leaf){
     }
 
     else if(FRAME_ID < (*leaf)->FRAME_ID){ // Descobrir como calcular o tamanho dos filhos esquerdo e direito!!!
+        caller->FREE_SPACE = SIZE / 2;
         FRAME_ID += create_frame(caller, &(*leaf)->left);
     }
 
     else if(FRAME_ID > (*leaf)->FRAME_ID){
+        caller->FREE_SPACE = SIZE / 2;
         FRAME_ID += create_frame(caller, &(*leaf)->right);
     }
 
@@ -178,14 +227,81 @@ void initialize_memory(){
     mainMemory = malloc(sizeof(MEMORY));
     mainMemory->SIZE = MAX_VIRTUAL_PAGES * PAGE_SIZE; // Main memory size in KB. Default is 64 * 4 = 256 KB
     mainMemory->FRAME_ROOT = NULL;
-    //mainMemory->FREE_SPACE = mainMemory->SIZE; // The memory is empty
+    mainMemory->FREE_SPACE = mainMemory->SIZE; // The memory is empty
     mainMemory->NFRAMES = 0;
 
     mainMemory->NFRAMES = create_frame(mainMemory, &mainMemory->FRAME_ROOT); // Creates the first frame occupying all the memory
 }
 
+void *Create_Process(void *arg){
+    //int idThread = *(int *) arg;
+    clock_t thread_time, temp_time = 0;
+    double aux;
+
+    for (int i = 0; i < MAX_PROCESSES; i++) {
+        if (i == 0){ // Don't wait to create the first processes
+            printf("*------------------------------First process created------------------------------*\n");
+
+            process_list[i] = Assemble_PCB(pid_counter);
+            //process_created++;
+
+            printf(" process_list[%d] = {pid: %d, virtual pages: %d, size: %d KB}\n", i, process_list[i]->PID, process_list[i]->VIRTUAL_PAGES, process_list[i]->SIZE);
+            printf("\n");
+
+            /*high_queue[i] = process_list[i];
+            HQ_Count++;
+
+            thread_time = clock();
+            aux = (thread_time - start_t) * 1000. / CLOCKS_PER_SEC;
+
+            printf(" Process %d arrived in high_queue[%d] at %6.3f + %6.3f\n", high_queue[i]->PID, i, (start_t * 1000. / CLOCKS_PER_SEC), aux);*/
+            printf("*--------------------------------------------------------------------------------*");
+            printf("\n");
+
+            pid_counter++;
+            //temp_time = thread_time;
+        }
+
+        else{
+            unsigned int time = 3; //Creates a process each 3 secs
+
+            //sleep:
+            sleep(time);
+
+            process_list[i] = Assemble_PCB(pid_counter);
+            //process_created++;
+
+            printf(" process_list[%d] = {pid: %d, virtual pages: %d, size: %d KB}\n", i, process_list[i]->PID, process_list[i]->VIRTUAL_PAGES, process_list[i]->SIZE);
+            printf("\n");
+
+            /*high_queue[i] = process_list[i];
+            HQ_Count++;
+
+            thread_time = clock();
+            aux = (thread_time - temp_time) * 1000. / CLOCKS_PER_SEC;
+
+            printf(" Process %d arrived in high_queue[%d] at %6.3f + %6.3f\n", high_queue[i]->PID, i, (temp_time * 1000. / CLOCKS_PER_SEC), aux);*/
+            printf("*--------------------------------------------------------------------------------*");
+            printf("\n");
+
+            pid_counter++;
+            //temp_time = thread_time;
+        }
+    }
+
+    free(arg);
+    pthread_exit(NULL);
+}
+
 void Terminate(){
     for (int i = 0; i < MAX_PROCESSES; i++){
+        PAGE *tmp = process_list[i]->first;
+
+        while(tmp != NULL){
+            free(tmp);
+            tmp = tmp->next;
+        }
+
         free(process_list[i]);
     }
 }
@@ -194,13 +310,17 @@ int main(int argc, char const *argv[]){
     //int P[20],burst_time[20],quantum,n; // Round Robin waiting time/ turnaround time variables/ parameters
     //start_t = clock();
 
+    printf("Starting simulator...\n");
     //printf("==> Simulator start time: %6.3f\n", (start_t * 1000. / CLOCKS_PER_SEC));
     //printf("\n");
 
     if (sodium_init() < 0) {
-        printf("Panic! The Sodium library couldn't be initialized, it is not safe to use");
+        printf("Panic! The Sodium library couldn't be initialized, it is not safe to use\n");
         return 1;
     }
+
+    printf("Default values: Max frames in main memory = %d, page size = %d KB, max number of pages per process = %d, process working se limit = %d\n", MAX_FRAMES, PAGE_SIZE, MAX_VIRTUAL_PAGES, WORKING_SET_LIMIT);
+    printf("\n");
 
     /*for (int i = 0; i < MAX_PROCESSES; ++i) {
         high_queue[i] = NULL;
