@@ -8,7 +8,7 @@
 #include <stdbool.h>
 
 enum{
-    NTHREADS = 1, // Number of threads
+    NTHREADS = 2, // Number of threads
     MAX_FRAMES = 64, // Main memory's max number of frames
     MAX_VIRTUAL_PAGES = 64, // Process's max number of virtual pages
     PAGE_SIZE = 4, // Page size in KB
@@ -73,18 +73,18 @@ void AddNewPage(unsigned int value, PCB *process){
     }*/
 }
 
-FRAME *search(int key, FRAME *leaf){ // Ainda adaptando!!!
+FRAME *search_memory(int key, FRAME *leaf){ // Ainda adaptando!!!
     if( leaf != 0 ){
         if(key == leaf->FRAME_ID){
             return leaf;
         }
 
         else if(key<leaf->FRAME_ID){
-            return search(key, leaf->left);
+            return search_memory(key, leaf->left);
         }
 
         else{
-            return search(key, leaf->right);
+            return search_memory(key, leaf->right);
         }
     }
 
@@ -94,7 +94,7 @@ FRAME *search(int key, FRAME *leaf){ // Ainda adaptando!!!
 PCB *Assemble_PCB(unsigned int pid){
     //int aux = randombytes_uniform(MAX_IOREQUESTS+1); // Decides how many I/O requests will be made randomly, varies from 0 to MAX_IOREQUESTS - 1
     unsigned int aux;
-    PAGE *dummie;
+    PAGE *dummy;
 
     bootstrapper = malloc(sizeof(PCB));
     bootstrapper->PID = pid;
@@ -169,17 +169,17 @@ PCB *Assemble_PCB(unsigned int pid){
         printf(", ");
     }
 
-    dummie = bootstrapper->first;
+    dummy = bootstrapper->first;
 
-    while(dummie->next != NULL){
-        dummie = dummie->next;
+    while(dummy->next != NULL){
+        dummy = dummy->next;
 
-        if(dummie->next != NULL) {
-            printf("%d, ", dummie->num);
+        if(dummy->next != NULL) {
+            printf("%d, ", dummy->num);
         }
 
         else{
-            printf("%d}\n", dummie->num);
+            printf("%d}\n", dummy->num);
         }
     }
 
@@ -256,8 +256,8 @@ void initialize_memory(){
 
 void *Create_Process(void *arg){
     //int idThread = *(int *) arg;
-    clock_t thread_time, temp_time = 0;
-    double aux;
+    //clock_t thread_time, temp_time = 0;
+    //double aux;
 
     for (int i = 0; i < MAX_PROCESSES; i++) {
         if (i == 0){ // Don't wait to create the first processes
@@ -311,7 +311,15 @@ void *Create_Process(void *arg){
     pthread_exit(NULL);
 }
 
-void Terminate(){
+void *Memory_Manager(void *arg){
+    //int idThread = *(int *) arg;
+
+    while(){ // under construction!!!
+
+    }
+}
+
+void terminate(){
     for (int i = 0; i < MAX_PROCESSES; i++){
         PAGE *tmp = process_list[i]->first;
 
@@ -321,6 +329,14 @@ void Terminate(){
         }
 
         free(process_list[i]);
+    }
+}
+
+void destroy_tree(FRAME *leaf){
+    if(leaf != NULL){
+        destroy_tree(leaf->left);
+        destroy_tree(leaf->right);
+        free(leaf);
     }
 }
 
@@ -374,19 +390,19 @@ int main(int argc, char const *argv[]){
 
         *arg = t;
 
-        //if (t == 0) {
+        if (t == 0) {
             if (pthread_create(&tid_sistema[t], NULL, Create_Process, (void *) arg)) {
                 fprintf(stderr, "--ERROR: pthread_create()\n");
                 exit(-1);
             }
-        //}
+        }
 
-        /*if (t == 1){
-            if (pthread_create(&tid_sistema[t], NULL, Scheduler, (void *) arg)) {
+        if (t == 1){
+            if (pthread_create(&tid_sistema[t], NULL, Memory_Manager, (void *) arg)) {
                 printf("--ERROR: pthread_create()\n");
                 exit(-1);
             }
-        }*/
+        }
     }
 
     /*printf("==> Chamei CPU!!!\n");
@@ -400,7 +416,8 @@ int main(int argc, char const *argv[]){
         }
     }
 
-    Terminate();
+    terminate();
+    destroy_tree(mainMemory->FRAME_ROOT);
     /*end_t = clock();
 
     printf("\n");
