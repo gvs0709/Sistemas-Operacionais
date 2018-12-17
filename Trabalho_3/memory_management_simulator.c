@@ -315,7 +315,7 @@ void *Memory_Manager(void *arg){
     //int idThread = *(int *) arg;
 
     pthread_t lista_processos[MAX_PROCESSES];
-    int num_proc=arg;
+    int num_proc = *(int *)arg;
 
     while(num_proc<MAX_PROCESSES){
       pthread_create(&lista_processos[num_proc],NULL,Create_Process,NULL);
@@ -325,10 +325,6 @@ void *Memory_Manager(void *arg){
 
     for(int i = 0; i < MAX_PROCESSES; i++){
       pthread_join(lista_processos[i], NULL);
-    }
-
-    while(){ // under construction!!!
-
     }
 }
 
