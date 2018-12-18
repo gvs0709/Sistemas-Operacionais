@@ -312,11 +312,25 @@ void *Create_Process(void *arg){
 }
 
 void *Memory_Manager(void *arg){
-    //int idThread = *(int *) arg;
+    
 
-    while(){ // under construction!!!
+    
+}
 
-    }
+void allocate_page(PAGE *page_ins, FRAME *frame_atual){
+	
+	if ((search_memory(mainMemory->NFRAMES, frame_atual)) == 0){
+		
+		frame_atual->PAGE_ID = page_ins->num;
+		frame_atual->PROCESS_PID = page_ins->OWNER_PID;
+		frame_atual->FRAME_ID = mainMemory ->NFRAMES;	
+
+	}
+	else{
+		printf("Exists!");
+
+	}	
+
 }
 
 void terminate(){
