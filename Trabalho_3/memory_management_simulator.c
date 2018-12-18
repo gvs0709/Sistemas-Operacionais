@@ -43,13 +43,15 @@ typedef struct main_memory{
 }MEMORY;
 
 typedef struct swap_memory{
-    int SIZE, FREE_SPACE;
-}SWAP;
+    int num_pag;
+    PAGE *pag_atual;
+    PAGE *pag_ultima;
+}SWAP_MEMORY;
 
 unsigned int pid_counter = 100;
 PCB *bootstrapper, *process_list[MAX_PROCESSES];
 MEMORY *mainMemory = NULL;
-SWAP *swapMemory = NULL;
+SWAP_MEMORY *swapMemory = NULL;
 
 void AddNewPage(unsigned int value, PCB *process){
     PAGE *current = (PAGE*)malloc(sizeof(PAGE));
@@ -74,12 +76,12 @@ void AddNewPage(unsigned int value, PCB *process){
 }
 
 FRAME *search_memory(int key, FRAME *leaf){ // Ainda adaptando!!!
-    if( leaf != 0 ){
-        if(key == leaf->FRAME_ID){
+    if(leaf != 0){
+        if(key == leaf->SIZE){ // verificar se leaf->SIZE esta correto
             return leaf;
         }
 
-        else if(key<leaf->FRAME_ID){
+        else if(key < leaf->SIZE){ // Talvez tenha q mudar o if else
             return search_memory(key, leaf->left);
         }
 
@@ -269,6 +271,7 @@ void *Create_Process(void *arg){
             printf("--> process_list[%d] = {pid: %d, virtual pages: %d, size: %d KB}\n", i, process_list[i]->PID, process_list[i]->VIRTUAL_PAGES, process_list[i]->SIZE);
             printf("\n");
 
+
             /*high_queue[i] = process_list[i];
             HQ_Count++;
 
@@ -312,24 +315,96 @@ void *Create_Process(void *arg){
 }
 
 void *Memory_Manager(void *arg){
-    
 
-    
+
+
+}
+
+void iniciaSwap() {
+    swapMemory->num_pag = 0;
+    swapMemory->pag_atual = NULL;
+    swapMemory->pag_ultima = swapMemory->pag_atual;
+}
+
+int swap_in(int proc_pid){
+    int paginas_swap = 0;
+    FRAME *temp;
+
+    PAGE *pag_agora = swapMemory->pag_atual;
+
+    while(pag_agora !=NULL){
+        if(pag_agora->OWNER_PID == proc_pid){
+            paginas_swap++;
+        }
+        pag_agora = pag_agora->next;
+    }
+
+    if(mainMemory->NFRAMES + paginas_swap > MAX_FRAMES){
+        printf("No proc_pid %d nao pode realizar swapMemory in. Começando swapMemory out....\n", proc_pid);
+        //swap_out(proc_pid);
+    }
+
+    printf("Começando swapMemory in do processo : %d\n", proc_pid);
+
+
+    if(swapMemory->pag_atual != NULL){
+        if(swapMemory->pag_atual->OWNER_PID == proc_pid){
+            while(swapMemory->pag_atual != NULL && swapMemory->pag_atual->OWNER_PID == proc_pid){
+                temp = search_memory(PAGE_SIZE, mainMemory->FRAME_ROOT); // tirar FRAME_ROOT abaixo, colocar search_memory com os devidos parametros
+                temp->PAGE_ID = swapMemory->pag_atual->num;
+                temp->PROCESS_PID = swapMemory->pag_atual->OWNER_PID;
+                //mainMemory->FRAME_ROOT->left->PAGE_ID = swapMemory->pag_atual->num;
+                //mainMemory->FRAME_ROOT->left->PROCESS_PID = swapMemory->pag_atual->OWNER_PID;
+                swapMemory->pag_atual = swapMemory->pag_atual->next;
+                //mainMemory->pag_ultima = mainMemory->FRAME_ROOT->left;
+                //mainMemory->FRAME_ROOT->left = NULL;
+            }
+        }
+
+        else {
+            pag_agora = swapMemory->pag_atual;
+
+            while(pag_agora != NULL){
+                if(pag_agora->OWNER_PID == proc_pid){
+                    mainMemory->FRAME_ROOT->left->PROCESS_PID = pag_agora->OWNER_PID; // colocar temp aqui tambem(?)
+                    mainMemory->FRAME_ROOT->left->PAGE_ID = pag_agora->num;
+                    pag_agora->next = pag_agora->next->next;
+                    mainMemory->FRAME_ROOT->right = mainMemory->FRAME_ROOT->left;
+                    mainMemory->FRAME_ROOT->left = NULL;
+                }
+                pag_agora = pag_agora->next;
+            }
+        }
+        mainMemory->NFRAMES += paginas_swap;
+        swapMemory->num_pag -= paginas_swap;
+    }
+
+    printf("Acabou o swap in!\n");
+    //exibe_memoria();
+    //exibe_swap();
+    printf("\n");
+
+    return paginas_swap;
+
+}
+
+void swap_out(){
+
 }
 
 void allocate_page(PAGE *page_ins, FRAME *frame_atual){
-	
-	if ((search_memory(mainMemory->NFRAMES, frame_atual)) == 0){
-		
-		frame_atual->PAGE_ID = page_ins->num;
-		frame_atual->PROCESS_PID = page_ins->OWNER_PID;
-		frame_atual->FRAME_ID = mainMemory ->NFRAMES;	
 
-	}
-	else{
-		printf("Exists!");
+    if ((search_memory(mainMemory->NFRAMES, frame_atual)) == 0){ // Talvez seja melhor criar um variação de search_memory
 
-	}	
+        frame_atual->PAGE_ID = page_ins->num;
+        frame_atual->PROCESS_PID = page_ins->OWNER_PID;
+        frame_atual->FRAME_ID = mainMemory ->NFRAMES;
+        swap_in(page_ins->OWNER_PID);
+    }
+    else{
+        printf("Exists!");
+
+    }
 
 }
 
@@ -357,6 +432,7 @@ void destroy_tree(FRAME *leaf){
 int main(int argc, char const *argv[]){
     //int P[20],burst_time[20],quantum,n; // Round Robin waiting time/ turnaround time variables/ parameters
     //start_t = clock();
+    iniciaSwap();
 
     printf("--Starting simulator...\n");
     //printf("==> Simulator start time: %6.3f\n", (start_t * 1000. / CLOCKS_PER_SEC));
@@ -446,3 +522,5 @@ int main(int argc, char const *argv[]){
 
     pthread_exit(NULL);
 }
+
+
