@@ -26,8 +26,6 @@ typedef struct process_pcb{
     unsigned int PID, VIRTUAL_PAGES, PAGE_NUMBER[MAX_VIRTUAL_PAGES], SIZE, pages_in_mem;
     bool firstPage;
     PAGE *first, *last; // Linked list of process pages
-    //char IOLIST[MAX_VIRTUAL_PAGES];
-    //bool PENDINGIO;
 }PCB;
 
 typedef struct frame{
@@ -35,10 +33,11 @@ typedef struct frame{
     int PAGE_ID;
     struct frame *left;
     struct frame *right;
+    struct frame *next;
 }FRAME;
 
 typedef struct main_memory{
-    unsigned int SIZE, NFRAMES, FREE_SPACE;
+    unsigned int SIZE, NFRAMES, FREE_SPACE, PREVIOUS_FRAME;
     FRAME *FRAME_ROOT;
 }MEMORY;
 
@@ -82,6 +81,24 @@ FRAME *search_memory(int key, FRAME *leaf){ // Ainda adaptando!!!
         }
 
         else if(key < leaf->SIZE){ // Talvez tenha q mudar o if else
+            return search_memory(key, leaf->left);
+        }
+
+        else{
+            return search_memory(key, leaf->right);
+        }
+    }
+
+    else return 0;
+}
+
+FRAME *search_frame(int key, FRAME *leaf){ // Ainda adaptando!!!
+    if(leaf != 0){
+        if(key == leaf->FRAME_ID){ // verificar se leaf->SIZE esta correto
+            return leaf;
+        }
+
+        else if(key < leaf->FRAME_ID){ // Talvez tenha q mudar o if else
             return search_memory(key, leaf->left);
         }
 
@@ -227,6 +244,7 @@ unsigned int create_frame(MEMORY *caller, FRAME **leaf){
         (*leaf)->SIZE = SIZE;
         (*leaf)->PAGE_ID = -1;
         (*leaf)->PROCESS_PID = 0; // The frame is empty
+        (*leaf)->next = NULL;
 
         /* initialize the children to null */
         (*leaf)->left = NULL;
@@ -252,6 +270,7 @@ void initialize_memory(){
     mainMemory->FRAME_ROOT = NULL;
     mainMemory->FREE_SPACE = MAX_VIRTUAL_PAGES * PAGE_SIZE; // The memory is empty
     mainMemory->NFRAMES = 0;
+    mainMemory->PREVIOUS_FRAME = 0; // No previous frame
 
     mainMemory->NFRAMES = create_frame(mainMemory, &mainMemory->FRAME_ROOT); // Creates the first frame occupying all the memory
 }
