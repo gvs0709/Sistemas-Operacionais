@@ -344,7 +344,7 @@ void allocate_page(PAGE *page_ins, FRAME *frame_atual);
 
 void *Memory_Manager(void *arg){
     int round = 2, i = 0, temp;
-    PCB *current_process = NULL;
+    PCB *current_process;
     PAGE *pag_allocate;
     FRAME *dummy = NULL;
 
@@ -353,15 +353,14 @@ void *Memory_Manager(void *arg){
     while(round){
         while(process_list[i] == NULL){}
 
-        for(i = 0; i < MAX_PROCESSES; i++){
+        while(i < MAX_PROCESSES){
             pthread_mutex_lock(&lock);
             current_process = process_list[i];
 
             printf("--Processo com pid %d executando...\n", current_process->PID);
-            i++;
 
-            if(current_process->VIRTUAL_PAGES >= 4){
-                for(int j = 0; j <= 4; j++){
+            if(current_process->VIRTUAL_PAGES >= WORKING_SET_LIMIT){
+                for(int j = 0; j < WORKING_SET_LIMIT; j++){
                     pag_allocate = current_process->first;
                     temp = randombytes_uniform(MAX_VIRTUAL_PAGES);
 
@@ -376,11 +375,12 @@ void *Memory_Manager(void *arg){
                     dummy = search_memory(PAGE_SIZE, mainMemory->FRAME_ROOT);
                     allocate_page(pag_allocate, dummy);
                     printf("--Página %d do processo %d alocada no frame %d\n", pag_allocate->num, current_process->PID, dummy->FRAME_ID);
+                    printf("\n");
                 }
             }
 
             else{
-                for(int j = 0; j <= current_process->VIRTUAL_PAGES; j++){
+                for(int j = 0; j < current_process->VIRTUAL_PAGES; j++){
                     pag_allocate = current_process->first;
                     temp = randombytes_uniform(MAX_VIRTUAL_PAGES);
 
@@ -395,16 +395,24 @@ void *Memory_Manager(void *arg){
                     dummy = search_memory(PAGE_SIZE, mainMemory->FRAME_ROOT);
                     allocate_page(pag_allocate, search_memory(PAGE_SIZE, mainMemory->FRAME_ROOT));
                     printf("--Página %d do processo %d alocada no frame %d\n", pag_allocate->num, current_process->PID, dummy->FRAME_ID);
+                    printf("\n");
                 }
             }
 
             pthread_mutex_unlock(&lock);
+            i++;
 
-            while(process_list[i] == NULL){}
+            if(i < MAX_PROCESSES) {
+                while (process_list[i] == NULL) {}
+            }
         }
 
         round--;
+        i = 0;
     }
+
+    free(arg);
+    pthread_exit(NULL);
 }
 
 void iniciaSwap() {
@@ -482,7 +490,7 @@ void swap_out(){
 
 void allocate_page(PAGE *page_ins, FRAME *frame_atual){
 
-    if((search_memory(mainMemory->NFRAMES, frame_atual)) == 0){ // Talvez seja melhor criar um variação de search_memory
+    if((search_memory(PAGE_SIZE, frame_atual)) == 0){ // Talvez seja melhor criar um variação de search_memory
 
         frame_atual->PAGE_ID = page_ins->num;
         frame_atual->PROCESS_PID = page_ins->OWNER_PID;
@@ -496,7 +504,7 @@ void allocate_page(PAGE *page_ins, FRAME *frame_atual){
     }
 
     else{
-        printf("Exists!");
+        printf("Exists!\n");
 
     }
 
