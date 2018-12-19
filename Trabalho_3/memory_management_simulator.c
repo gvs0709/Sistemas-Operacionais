@@ -418,6 +418,11 @@ void allocate_page(PAGE *page_ins, FRAME *frame_atual){
         frame_atual->PAGE_ID = page_ins->num;
         frame_atual->PROCESS_PID = page_ins->OWNER_PID;
         frame_atual->FRAME_ID = mainMemory ->NFRAMES;
+
+        if(mainMemory->PREVIOUS_FRAME != 0){
+            search_frame(mainMemory->PREVIOUS_FRAME, mainMemory->FRAME_ROOT)->next = frame_atual;
+        }
+
         swap_in(page_ins->OWNER_PID);
     }
     else{
