@@ -51,6 +51,7 @@ unsigned int pid_counter = 100;
 PCB *bootstrapper, *process_list[MAX_PROCESSES];
 MEMORY *mainMemory = NULL;
 SWAP_MEMORY *swapMemory = NULL;
+pthread_mutex_t lock;
 
 void AddNewPage(unsigned int value, PCB *process){
     PAGE *current = (PAGE*)malloc(sizeof(PAGE));
@@ -236,7 +237,7 @@ PCB *Assemble_PCB(unsigned int pid){
 }
 
 unsigned int create_frame(MEMORY *caller, FRAME **leaf){
-    unsigned int FRAME_ID = caller->NFRAMES + 1, SIZE = caller->FREE_SPACE;
+    unsigned int FRAME_ID = caller->NFRAMES + 1, SIZE = PAGE_SIZE/*caller->FREE_SPACE*/;
 
     if(*leaf == NULL){
         *leaf = (FRAME*) malloc(sizeof(FRAME));
@@ -252,13 +253,13 @@ unsigned int create_frame(MEMORY *caller, FRAME **leaf){
     }
 
     else if(FRAME_ID < (*leaf)->FRAME_ID){
-        caller->FREE_SPACE = SIZE / 2;
-        FRAME_ID += create_frame(caller, &(*leaf)->left);
+        //caller->FREE_SPACE = SIZE / 2;
+        FRAME_ID = create_frame(caller, &(*leaf)->left);
     }
 
     else if(FRAME_ID > (*leaf)->FRAME_ID){
-        caller->FREE_SPACE = SIZE / 2;
-        FRAME_ID += create_frame(caller, &(*leaf)->right);
+        //caller->FREE_SPACE = SIZE / 2;
+        FRAME_ID = create_frame(caller, &(*leaf)->right);
     }
 
     return FRAME_ID;
@@ -272,7 +273,9 @@ void initialize_memory(){
     mainMemory->NFRAMES = 0;
     mainMemory->PREVIOUS_FRAME = 0; // No previous frame
 
-    mainMemory->NFRAMES = create_frame(mainMemory, &mainMemory->FRAME_ROOT); // Creates the first frame occupying all the memory
+    while(mainMemory->NFRAMES <= MAX_FRAMES) {
+        mainMemory->NFRAMES = create_frame(mainMemory, &mainMemory->FRAME_ROOT); // Creates the first frame occupying all the memory
+    }
 }
 
 void *Create_Process(void *arg){
@@ -284,6 +287,7 @@ void *Create_Process(void *arg){
         if (i == 0){ // Don't wait to create the first processes
             printf("*------------------------------First process created------------------------------*\n");
 
+            pthread_mutex_lock(&lock);
             process_list[i] = Assemble_PCB(pid_counter);
             //process_created++;
 
@@ -303,11 +307,13 @@ void *Create_Process(void *arg){
 
             pid_counter++;
             //temp_time = thread_time;
+            pthread_mutex_unlock(&lock);
         }
 
         else{
             sleep(PROCESS_TIME); //Creates a process each 3 secs
 
+            pthread_mutex_lock(&lock);
             process_list[i] = Assemble_PCB(pid_counter);
             //process_created++;
 
@@ -326,6 +332,7 @@ void *Create_Process(void *arg){
 
             pid_counter++;
             //temp_time = thread_time;
+            pthread_mutex_unlock(&lock);
         }
     }
 
@@ -333,10 +340,71 @@ void *Create_Process(void *arg){
     pthread_exit(NULL);
 }
 
+void allocate_page(PAGE *page_ins, FRAME *frame_atual);
+
 void *Memory_Manager(void *arg){
+    int round = 2, i = 0, temp;
+    PCB *current_process = NULL;
+    PAGE *pag_allocate;
+    FRAME *dummy = NULL;
 
+    //Coloca pra receber o ID no parametro
 
+    while(round){
+        while(process_list[i] == NULL){}
 
+        for(i = 0; i < MAX_PROCESSES; i++){
+            pthread_mutex_lock(&lock);
+            current_process = process_list[i];
+
+            printf("--Processo com pid %d executando...\n", current_process->PID);
+            i++;
+
+            if(current_process->VIRTUAL_PAGES >= 4){
+                for(int j = 0; j <= 4; j++){
+                    pag_allocate = current_process->first;
+                    temp = randombytes_uniform(MAX_VIRTUAL_PAGES);
+
+                    while(current_process->PAGE_NUMBER[temp] == 0){
+                        temp = randombytes_uniform(MAX_VIRTUAL_PAGES);
+                    }
+
+                    while(pag_allocate->num != temp){
+                        pag_allocate = pag_allocate->next;
+                    }
+
+                    dummy = search_memory(PAGE_SIZE, mainMemory->FRAME_ROOT);
+                    allocate_page(pag_allocate, dummy);
+                    printf("--Página %d do processo %d alocada no frame %d\n", pag_allocate->num, current_process->PID, dummy->FRAME_ID);
+                }
+            }
+
+            else{
+                for(int j = 0; j <= current_process->VIRTUAL_PAGES; j++){
+                    pag_allocate = current_process->first;
+                    temp = randombytes_uniform(MAX_VIRTUAL_PAGES);
+
+                    while(current_process->PAGE_NUMBER[temp] == 0){
+                        temp = randombytes_uniform(MAX_VIRTUAL_PAGES);
+                    }
+
+                    while(pag_allocate->num != temp){
+                        pag_allocate = pag_allocate->next;
+                    }
+
+                    dummy = search_memory(PAGE_SIZE, mainMemory->FRAME_ROOT);
+                    allocate_page(pag_allocate, search_memory(PAGE_SIZE, mainMemory->FRAME_ROOT));
+                    printf("--Página %d do processo %d alocada no frame %d\n", pag_allocate->num, current_process->PID, dummy->FRAME_ID);
+                }
+            }
+
+            pthread_mutex_unlock(&lock);
+
+            while(process_list[i] == NULL){}
+        }
+
+        round--;
+    }
 }
 
 void iniciaSwap() {
@@ -414,7 +482,7 @@ void swap_out(){
 
 void allocate_page(PAGE *page_ins, FRAME *frame_atual){
 
-    if ((search_memory(mainMemory->NFRAMES, frame_atual)) == 0){ // Talvez seja melhor criar um variação de search_memory
+    if((search_memory(mainMemory->NFRAMES, frame_atual)) == 0){ // Talvez seja melhor criar um variação de search_memory
 
         frame_atual->PAGE_ID = page_ins->num;
         frame_atual->PROCESS_PID = page_ins->OWNER_PID;
@@ -426,6 +494,7 @@ void allocate_page(PAGE *page_ins, FRAME *frame_atual){
 
         swap_in(page_ins->OWNER_PID);
     }
+
     else{
         printf("Exists!");
 
@@ -477,23 +546,23 @@ int main(int argc, char const *argv[]){
     printf("Main memory initialized. Size = %d KB, current number of frames = %d, free space = %d KB, frame size = %d KB, frame id = %d, id of page in frame = %d, pid of page owner = %d\n", mainMemory->SIZE, mainMemory->NFRAMES, mainMemory->FREE_SPACE, mainMemory->FRAME_ROOT->SIZE, mainMemory->FRAME_ROOT->FRAME_ID, mainMemory->FRAME_ROOT->PAGE_ID, mainMemory->FRAME_ROOT->PROCESS_PID);
     printf("\n");
 
-    //iniciaSwap();
+    iniciaSwap();
 
-    /*for (int i = 0; i < MAX_PROCESSES; ++i) {
-        high_queue[i] = NULL;
-        low_queue[i] = NULL;
-        disc_queue[i] = NULL;
-        tape_queue[i] = NULL;
-        printer_queue[i] = NULL;
-        exited_cpu[i] = NULL;
+    for (int i = 0; i < MAX_PROCESSES; ++i) {
+        process_list[i] = NULL;
     }
 
-    select_IO[0] = T_DISC;
+    /*select_IO[0] = T_DISC;
     select_IO[1] = T_TAPE;
     select_IO[2] = T_PRINTER;*/
 
     pthread_t tid_sistema[NTHREADS];
     int *arg;
+
+    if (pthread_mutex_init(&lock, NULL) != 0){
+        fprintf(stderr, "\n --Mutex init failed\n");
+        return 1;
+    }
 
     for(int t = 0; t < NTHREADS; t++) {
         //printf("--Aloca e preenche argumentos para thread %d\n", t);
