@@ -456,7 +456,6 @@ void destroy_tree(FRAME *leaf){
 int main(int argc, char const *argv[]){
     //int P[20],burst_time[20],quantum,n; // Round Robin waiting time/ turnaround time variables/ parameters
     //start_t = clock();
-    iniciaSwap();
 
     printf("--Starting simulator...\n");
     //printf("==> Simulator start time: %6.3f\n", (start_t * 1000. / CLOCKS_PER_SEC));
@@ -476,6 +475,8 @@ int main(int argc, char const *argv[]){
 
     printf("Main memory initialized. Size = %d KB, current number of frames = %d, free space = %d KB, frame size = %d KB, frame id = %d, id of page in frame = %d, pid of page owner = %d\n", mainMemory->SIZE, mainMemory->NFRAMES, mainMemory->FREE_SPACE, mainMemory->FRAME_ROOT->SIZE, mainMemory->FRAME_ROOT->FRAME_ID, mainMemory->FRAME_ROOT->PAGE_ID, mainMemory->FRAME_ROOT->PROCESS_PID);
     printf("\n");
+
+    iniciaSwap();
 
     /*for (int i = 0; i < MAX_PROCESSES; ++i) {
         high_queue[i] = NULL;
