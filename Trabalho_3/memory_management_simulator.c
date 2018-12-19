@@ -69,10 +69,6 @@ void AddNewPage(unsigned int value, PCB *process){
         process->last->next = current;
         process->last = current;
     }
-
-    /*if(process->firstPage < process->VIRTUAL_PAGES) {
-        process->firstPage++;
-    }*/
 }
 
 FRAME *search_memory(int key, FRAME *leaf){ // Ainda adaptando!!!
@@ -143,39 +139,6 @@ PCB *Assemble_PCB(unsigned int pid){
             bootstrapper->PAGE_NUMBER[aux] = 1;
             AddNewPage(aux, bootstrapper);
         }
-
-        /*switch (select_IO[randombytes_uniform(IO_TYPE)]){
-            case T_DISC:
-                bootstrapper->IOLIST[i] = DISC;
-                break;
-
-            case T_TAPE:
-                bootstrapper->IOLIST[i] = TAPE;
-                break;
-
-            case T_PRINTER:
-                bootstrapper->IOLIST[i] = PRINTER;
-                break;
-
-            default:
-                printf("==> Something went wrong with select_IO: {");
-
-                for (int j = 0; j < IO_TYPE; ++j){
-                    if (j != (IO_TYPE - 1)) {
-                        printf("%d, ", select_IO[j]);
-                    }
-
-                    else{
-                        printf("%d}\n", select_IO[j]);
-                        printf("\n");
-                    }
-                }
-
-                exit(-1);
-                //break;
-        }
-
-        printf("IOLIST[%d]: %c |\n", i, bootstrapper->IOLIST[i]);*/
     }
 
     printf("Process Page List: {%d", bootstrapper->first->num);
@@ -204,34 +167,6 @@ PCB *Assemble_PCB(unsigned int pid){
     }
 
     printf("\n");
-
-    /*if (aux == 0){
-        bootstrapper->PENDINGIO = false;
-        bootstrapper->IOITERATOR = -1;
-
-        printf("| IOITERATOR = %d |\n", bootstrapper->IOITERATOR);
-        printf("\n");
-    }
-
-    if (aux > 0){
-        bootstrapper->PENDINGIO =true;
-    }
-
-    if (aux > 1){
-        bootstrapper->PENDINGIO =true;
-        //printf("IOTIME ordenation:\n");
-
-        for (int k = 0; k < aux; ++k){
-            //printf("| pid: %d, IOTIME[%d]: %d |\n", pid, k, bootstrapper->IOTIME[k]);
-
-            if (bootstrapper->IOTIME[k] > bootstrapper->IOTIME[bootstrapper->IOITERATOR]){
-                bootstrapper->IOITERATOR = k;
-            }
-        }
-
-        printf("| IOITERATOR = %d |\n", bootstrapper->IOITERATOR);
-        printf("\n");
-    }*/
 
     return bootstrapper;
 }
@@ -295,10 +230,7 @@ void *Create_Process(void *arg){
             printf("\n");
 
 
-            /*high_queue[i] = process_list[i];
-            HQ_Count++;
-
-            thread_time = clock();
+            /*thread_time = clock();
             aux = (thread_time - start_t) * 1000. / CLOCKS_PER_SEC;
 
             printf(" Process %d arrived in high_queue[%d] at %6.3f + %6.3f\n", high_queue[i]->PID, i, (start_t * 1000. / CLOCKS_PER_SEC), aux);*/
@@ -320,10 +252,7 @@ void *Create_Process(void *arg){
             printf("--> process_list[%d] = {pid: %d, virtual pages: %d, size: %d KB}\n", i, process_list[i]->PID, process_list[i]->VIRTUAL_PAGES, process_list[i]->SIZE);
             printf("\n");
 
-            /*high_queue[i] = process_list[i];
-            HQ_Count++;
-
-            thread_time = clock();
+            /*thread_time = clock();
             aux = (thread_time - temp_time) * 1000. / CLOCKS_PER_SEC;
 
             printf(" Process %d arrived in high_queue[%d] at %6.3f + %6.3f\n", high_queue[i]->PID, i, (temp_time * 1000. / CLOCKS_PER_SEC), aux);*/
@@ -347,8 +276,6 @@ void *Memory_Manager(void *arg){
     PCB *current_process;
     PAGE *pag_allocate;
     FRAME *dummy = NULL;
-
-    //Coloca pra receber o ID no parametro
 
     while(round){
         while(process_list[i] == NULL){}
@@ -449,11 +376,7 @@ int swap_in(int proc_pid){
                 temp = search_memory(PAGE_SIZE, mainMemory->FRAME_ROOT); // tirar FRAME_ROOT abaixo, colocar search_memory com os devidos parametros
                 temp->PAGE_ID = swapMemory->pag_atual->num;
                 temp->PROCESS_PID = swapMemory->pag_atual->OWNER_PID;
-                //mainMemory->FRAME_ROOT->left->PAGE_ID = swapMemory->pag_atual->num;
-                //mainMemory->FRAME_ROOT->left->PROCESS_PID = swapMemory->pag_atual->OWNER_PID;
                 swapMemory->pag_atual = swapMemory->pag_atual->next;
-                //mainMemory->pag_ultima = mainMemory->FRAME_ROOT->left;
-                //mainMemory->FRAME_ROOT->left = NULL;
             }
         }
 
@@ -560,10 +483,6 @@ int main(int argc, char const *argv[]){
         process_list[i] = NULL;
     }
 
-    /*select_IO[0] = T_DISC;
-    select_IO[1] = T_TAPE;
-    select_IO[2] = T_PRINTER;*/
-
     pthread_t tid_sistema[NTHREADS];
     int *arg;
 
@@ -597,10 +516,6 @@ int main(int argc, char const *argv[]){
             }
         }
     }
-
-    /*printf("==> Chamei CPU!!!\n");
-    CPU(high_queue[0]);
-    printf("==> Cabou CPU\n");*/
 
     for (int t = 0; t < NTHREADS; t++) {
         if (pthread_join(tid_sistema[t], NULL)) {
