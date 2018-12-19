@@ -340,6 +340,7 @@ void *Memory_Manager(void *arg){
 }
 
 void iniciaSwap() {
+    swapMemory = malloc(sizeof(SWAP_MEMORY));
     swapMemory->num_pag = 0;
     swapMemory->pag_atual = NULL;
     swapMemory->pag_ultima = swapMemory->pag_atual;
@@ -476,7 +477,7 @@ int main(int argc, char const *argv[]){
     printf("Main memory initialized. Size = %d KB, current number of frames = %d, free space = %d KB, frame size = %d KB, frame id = %d, id of page in frame = %d, pid of page owner = %d\n", mainMemory->SIZE, mainMemory->NFRAMES, mainMemory->FREE_SPACE, mainMemory->FRAME_ROOT->SIZE, mainMemory->FRAME_ROOT->FRAME_ID, mainMemory->FRAME_ROOT->PAGE_ID, mainMemory->FRAME_ROOT->PROCESS_PID);
     printf("\n");
 
-    iniciaSwap();
+    //iniciaSwap();
 
     /*for (int i = 0; i < MAX_PROCESSES; ++i) {
         high_queue[i] = NULL;
